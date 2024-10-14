@@ -15,7 +15,8 @@ def gen_payload(size):
     return "".join(random.choices(string.ascii_letters + string.digits, k=size))
 
 
-no con un pacchetto di tipo diverso"""
+def create_flows(args, flows_packets):
+    """Crea un insieme di flussi di pacchetti, ciascuno con un pacchetto di tipo diverso"""
     if len(flows_packets) == args.n_flows:
         return flows_packets
     else:
@@ -80,14 +81,14 @@ def gen_pktss(args, set_flows):
 
         if proto == "TCP":
             pkt = (
-                Ether(src="01:00:0c:cc:cc:cc", dst="00:11:22:33:44:55")
+                Ether()
                 / IP(src=src, dst=dst)
                 / TCP(dport=int(dport), sport=int(sport))
                 / Raw(load=gen_payload(normal_payload_size[i]))
             )
         else:
             pkt = (
-                Ether(src="01:00:0c:cc:cc:cc", dst="00:11:22:33:44:55")
+                Ether()
                 / IP(src=src, dst=dst)
                 / UDP(dport=int(dport), sport=int(sport))
                 / Raw(load=gen_payload(normal_payload_size[i]))
