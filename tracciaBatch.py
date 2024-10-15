@@ -111,11 +111,15 @@ def gen_pkts(args,set_flows):
 
             if proto == "TCP":
                 # pkt = Ether(src='01:00:0c:cc:cc:cc', dst='00:11:22:33:44:55') / IP(src=src, dst=dst) / TCP(dport=int(dport), sport=int(sport)) / Raw(load=gen_payload(normal_payload_size[i+x]))
-                pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / TCP(dport=int(dport), sport=int(sport)) / Raw(i)
+                pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / TCP(dport=int(dport), sport=int(sport)) / Raw(str(i+x))
 
             else:
                 # pkt = Ether(src='01:00:0c:cc:cc:cc', dst='00:11:22:33:44:55') / IP(src=src, dst=dst) / UDP(dport=int(dport), sport=int(sport)) / Raw(load=gen_payload(normal_payload_size[i+x]))
-                pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=int(dport), sport=int(sport)) / Raw(i)
+                # pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst, len=29) / UDP(dport=int(dport), sport=int(sport), len=9) / Raw(str(i))
+                pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=int(dport), sport=int(sport)) / Raw(str(i+x))
+
+                # del pkt[IP].chksum
+                pkt = pkt.__class__(bytes(pkt))
 
             
             batch.append(pkt)
@@ -128,7 +132,7 @@ def gen_pkts(args,set_flows):
             #aggiungo l'header di batching al pacchetto
             # pkt = add_batching_header(pkt, len(batch[x+1]))
             pkt = add_batching_header(pkt, len(batch[x]))
-            pkt = pkt/Raw(pkt[x+1])
+            pkt = pkt/Raw(batch[x+1])
 
             #aggiungo il payload al pacchetto
             pkts.append(pkt)
