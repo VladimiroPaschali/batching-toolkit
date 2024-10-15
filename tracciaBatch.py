@@ -3,7 +3,7 @@ from scapy.all import *
 import argparse 
 import numpy
 import random
-from pprint import print
+# from pprint import print
 import string
 
 
@@ -102,11 +102,21 @@ def gen_pkts(args,set_flows):
             #usa il valore della distribuzione zipf come indice per selezionare il flusso
             flow = list_flows[distr[(i+x)]%args.n_flows]
             src, dst, proto, sport, dport = flow
+            src = "192.168.101.1"
+            dst = "192.168.101.2"
+            sport = 2000
+            dport = 8901
+            smac= "e8:eb:d3:78:95:8d"
+            dmac = "58:a2:e1:d0:69:ce"
 
             if proto == "TCP":
-                pkt = Ether(src='01:00:0c:cc:cc:cc', dst='00:11:22:33:44:55') / IP(src=src, dst=dst) / TCP(dport=int(dport), sport=int(sport)) / Raw(load=gen_payload(normal_payload_size[i+x]))
+                # pkt = Ether(src='01:00:0c:cc:cc:cc', dst='00:11:22:33:44:55') / IP(src=src, dst=dst) / TCP(dport=int(dport), sport=int(sport)) / Raw(load=gen_payload(normal_payload_size[i+x]))
+                pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / TCP(dport=int(dport), sport=int(sport)) / Raw(i)
+
             else:
-                pkt = Ether(src='01:00:0c:cc:cc:cc', dst='00:11:22:33:44:55') / IP(src=src, dst=dst) / UDP(dport=int(dport), sport=int(sport)) / Raw(load=gen_payload(normal_payload_size[i+x]))
+                # pkt = Ether(src='01:00:0c:cc:cc:cc', dst='00:11:22:33:44:55') / IP(src=src, dst=dst) / UDP(dport=int(dport), sport=int(sport)) / Raw(load=gen_payload(normal_payload_size[i+x]))
+                pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=int(dport), sport=int(sport)) / Raw(i)
+
             
             batch.append(pkt)
 
@@ -116,14 +126,17 @@ def gen_pkts(args,set_flows):
             pkt = batch[x]
 
             #aggiungo l'header di batching al pacchetto
-            pkt = add_batching_header(pkt, len(batch[x+1]))
+            # pkt = add_batching_header(pkt, len(batch[x+1]))
+            pkt = add_batching_header(pkt, len(batch[x]))
+            pkt = pkt/Raw(pkt[x+1])
+
             #aggiungo il payload al pacchetto
             pkts.append(pkt)
 
         #ultimo pacchetto nel batch con next_len = 0
-        pkt = batch[args.batch_size-1]
-        pkt = add_batching_header(pkt, 0)
-        pkts.append(pkt)
+        # pkt = batch[args.batch_size-1]
+        # pkt = add_batching_header(pkt, 0)
+        # pkts.append(pkt)
 
  
     return pkts
@@ -194,7 +207,7 @@ if __name__ == "__main__":
 
     print(pkts[0].show())
     print(hexdump(pkts[0]))
-    pprint(pkts)
+    print(pkts)
 
 
     # Esempio di utilizzo della funzione modify_ethernet

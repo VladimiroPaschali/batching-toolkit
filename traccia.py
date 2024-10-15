@@ -81,14 +81,14 @@ def gen_pktss(args, set_flows):
 
         if proto == "TCP":
             pkt = (
-                Ether()
+                Ether(src='01:00:0c:cc:cc:cc', dst='00:11:22:33:44:55')
                 / IP(src=src, dst=dst)
                 / TCP(dport=int(dport), sport=int(sport))
                 / Raw(load=gen_payload(normal_payload_size[i]))
             )
         else:
             pkt = (
-                Ether()
+                Ether(src='01:00:0c:cc:cc:cc', dst='00:11:22:33:44:55')
                 / IP(src=src, dst=dst)
                 / UDP(dport=int(dport), sport=int(sport))
                 / Raw(load=gen_payload(normal_payload_size[i]))
