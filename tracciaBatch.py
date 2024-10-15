@@ -3,7 +3,9 @@ from scapy.all import *
 import argparse 
 import numpy
 import random
-from pprint import pprint
+from pprint import print
+import string
+
 
 from scapy.packet import Packet
 
