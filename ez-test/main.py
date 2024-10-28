@@ -1,7 +1,7 @@
 import click
 import json
 import os, glob, shutil
-
+from run_suite import run_suite
 SUITES_PATH = "suites"
 DEFAULT_RESULTS_PATH = "results"
 
@@ -75,10 +75,12 @@ def run(name):
         print(f"Error: {e}")
         return 1
     print(f"Running suite {name}")
+    print(run_suite(suite_cfg, name))
     return 0
 
 
 if __name__ == "__main__":
     cli.add_command(show)
     cli.add_command(create)
+    cli.add_command(run)
     cli()

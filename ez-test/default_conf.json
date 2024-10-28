@@ -1,12 +1,12 @@
 {
-    "ifname": "eth0",
-    "exp-dir": "",
+    "ifname": "ens8191f0np0",
+    "exp-dir": "/home/vladimiro/bxdp",
     "progs": [
         "drop"
     ],
     "exp-time-sec": 10,
     "check-load": true,
-    "bpf-stats": true,
+    "bpf-stats": false,
     "perf-b": true,
     "results-output-dir": "",
     "result-output": "csv"

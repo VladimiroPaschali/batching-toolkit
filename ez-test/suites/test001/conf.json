@@ -1,7 +1,17 @@
 {
+    "ifname": "ens8191f0np0",
+    "exp-dir": "/home/vladimiro/bxdp",
+    "ioctl-dir":"/home/vladimiro/mellanox_batching/utils",
+    "time": 3,
     "progs": [
-        "drop"
+        {
+            "name": "drop",
+            "path": "bdrop/bdrop"
+        }
     ],
-    "bpf-stats": true,
-    "perf-b": true
+    "bpf-stats": false,
+    "throughput": true,
+    "cpu": 0,
+    "perfIPC": true,
+    "perfCacheMisses":true
 }
