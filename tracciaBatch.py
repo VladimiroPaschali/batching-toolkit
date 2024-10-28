@@ -3,7 +3,11 @@ from scapy.all import *
 import argparse 
 import numpy
 import random
-from pprint import pprint
+# from pprint import print
+import string
+from tqdm import tqdm
+from topleiz import get_input, compute_hash
+
 
 from scapy.packet import Packet
 
@@ -35,8 +39,8 @@ def create_flows(args, flows_packets):
         for i in range(args.n_flows - len(flows_packets)):
             src = str(RandIP(args.s_subnet))
             dst = str(RandIP(args.d_subnet))
-            sport = str(RandShort())
-            dport = str(RandShort())
+            sport = int(RandShort())
+            dport = int(RandShort())
             if args.l4_proto == "MIX":
                 proto = random.choice(["TCP", "UDP"])
             else:
@@ -47,83 +51,160 @@ def create_flows(args, flows_packets):
 
 
 def uniform_dist(args):
-    '''genera una lista di indici ripetuti uniformemente da usare per scegliere i flussi lunga args.n_pkt'''
+    '''genera una lista di indici ripetuti uniformemente da usare per scegliere i flussi lunga args.n_pkts'''
     uniform_list=[]
     # Calcolare il numero di ripetizioni per ogni numero
-    rep = math.ceil(args.n_pkt / args.n_flows)
+    rep = math.ceil(args.n_pkts / args.n_flows)
     # Riempire la lista ripetendo i numeri da 0 a n_flows-1
     for i in range(args.n_flows):
         uniform_list.extend([i] * rep)
     # Troncamento della lista alla lunghezza specificata da n_pkt
-    uniform_list = uniform_list[:args.n_pkt]
+    uniform_list = uniform_list[:args.n_pkts]
     random.shuffle(uniform_list)
     
     return uniform_list
 
 def spacial_locality_dist(args):
-    '''genera una lista di indici da 0 a args.n_flows dove lo stesso ondice è ripetuto args.dist_param volte lunga args.n_pkt'''
+    '''genera una lista di indici da 0 a args.n_flows dove lo stesso ondice è ripetuto args.dist_param volte lunga args.n_pkts'''
     spacial_list=[]
-    while len(spacial_list) < args.n_pkt:
+    while len(spacial_list) < args.n_pkts:
         spacial_list.extend([i for i in range(args.n_flows) for _ in range(args.dist_param)])
-    return spacial_list[:args.n_pkt]
+    return spacial_list[:args.n_pkts]
+
+def gen_pkts_rss(args, set_flows):
+    
+    list_flows = list(set_flows)
+    distr = uniform_dist(args)
+    normal_payload_size = [
+        int(random.normalvariate(args.payload_size, 2)) for _ in range(args.n_pkts)
+    ]
+    qpkts = [[] for _ in range(args.n_queues)]
+    pkts = []
+    # Inizia la barra di progresso
+    for i in tqdm(range(0, len(distr)), desc="Generazione pacchetti uniform e hashed", unit="pkt"):
+        batch = []
+        # Crea il batch di pacchetti
+
+        flow = list_flows[distr[i] % args.n_flows]
+            
+        src, dst, proto, sport, dport = flow
+        smac= "e8:eb:d3:78:95:8d"
+        dmac = "58:a2:e1:d0:69:ce"
+
+        
+         # Crea pacchetto TCP o UDP
+        if proto == "TCP":
+            pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / TCP(dport=dport, sport=sport) / Raw(str(i))
+        else:
+            pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=dport, sport=sport) / Raw(str(i))
+
+        # Evita l'operazione ridondante
+        pkt = pkt.__class__(bytes(pkt)) if proto == "UDP" else pkt
+        pkts.append(pkt)
+        key = (
+            compute_hash(get_input(src, dst, int(sport), int(dport)), 12)
+        ) % args.n_queues
+        qpkts[key].append(pkt)
+
+    #scompatta code rss
+    hashed_pkts = []
+    offset = 0
+    for i in tqdm(range(args.n_pkts // args.locality_size), desc = "Scompattamento code RSS", unit="pkt"):
+        for j in range(args.n_queues):
+            hashed_pkts.extend(qpkts[j][offset : offset + args.locality_size])
+        offset += args.locality_size    
+    
+    #batch pkts
+    batched_pkts = []
+    for i in tqdm(range(0, len(pkts), args.batch_size), desc="Batching pacchetti", unit="pkt"):
+        batch = []
+        for x in range(min(args.batch_size, args.n_pkts - i)):
+            pkt = pkts[i + x]
+            batch.append(pkt)
+
+        # Aggiunge header di batching a tutti i pacchetti tranne l'ultimo
+        for x in range(args.batch_size - 1):
+            pkt = batch[x]
+            next_len = len(batch[x + 1])
+            pkt = add_batching_header(pkt, next_len) / Raw(batch[x + 1])
+            batched_pkts.append(pkt)
+    
+    #batch hashed pkts
+    batched_hashed_pkts = []
+    for i in tqdm(range(0, len(hashed_pkts), args.batch_size), desc="Batching pacchetti hashed", unit="pkt"):
+        batch = []
+        for x in range(min(args.batch_size, args.n_pkts - i)):
+            pkt = hashed_pkts[i + x]
+            batch.append(pkt)
+
+        # Aggiunge header di batching a tutti i pacchetti tranne l'ultimo
+        for x in range(args.batch_size - 1):
+            pkt = batch[x]
+            next_len = len(batch[x + 1])
+            pkt = add_batching_header(pkt, next_len) / Raw(batch[x + 1])
+            batched_hashed_pkts.append(pkt)
 
 
-def gen_pkts(args,set_flows):
-    '''Genera args.n_pkt pacchetti distribuiti secondo la distribuzione zipf con parametro args.dist_param partendo dai flussi set_flows'''
+    return batched_hashed_pkts, batched_pkts
+
+
+def gen_pkts(args, set_flows):
+    """Genera args.n_pkts pacchetti distribuiti secondo la distribuzione zipf con parametro args.dist_param partendo dai flussi set_flows"""
     list_flows = list(set_flows)
     pkts = []
+
+    # Scelta della distribuzione
     if args.distribution == "UNIFORM":
-        print("uniform")
         distr = uniform_dist(args)
-        # print(distr)
     elif args.distribution == "ZIPF":
-        print("zipf")
-        distr = numpy.random.zipf(a=args.dist_param, size=args.n_pkt)
-        # print(distr)
+        distr = numpy.random.zipf(a=args.dist_param, size=args.n_pkts)
     elif args.distribution == "LOCALITY":
-        print("locality")
         distr = spacial_locality_dist(args)
-        # print(distr)
-    
-    # pprint(list_flows)
-    # pprint(distr)
-    normal_payload_size = [int(random.normalvariate(args.payload_size, 2)) for _ in range(args.n_pkt)]
-    # print("normal_palyoad_size: ",normal_payload_size)
-    #cicla ogni batch_size
-    #for i = 0; i<len(distr); i+=args.batch_size
-    for i in range(0,len(distr), args.batch_size):
+
+    smac = "e8:eb:d3:78:95:8d"
+    dmac = "58:a2:e1:d0:69:ce"
+    if (args.fixed):
+        src = "192.168.101.1"
+        dst = "192.168.101.2"
+        sport = 2000
+        dport = 8901
+
+
+    # Precalcola anche la dimensione del payload con distribuzione gaussiana
+    normal_payload_size = [int(random.normalvariate(args.payload_size, 2)) for _ in range(args.n_pkts)]
+
+    # Ciclo principale per creare pacchetti in batch
+    for i in tqdm(range(0, len(distr), args.batch_size), desc="Generazione pacchetti", unit="pkt"):
         batch = []
-        #crea il batch di n pacchetti
-        for x in range(args.batch_size):
 
-            # flow = list_flows[(i+x)%args.n_flows]
-            #usa il valore della distribuzione zipf come indice per selezionare il flusso
-            flow = list_flows[distr[(i+x)]%args.n_flows]
-            src, dst, proto, sport, dport = flow
-
-            if proto == "TCP":
-                pkt = Ether(src='01:00:0c:cc:cc:cc', dst='00:11:22:33:44:55') / IP(src=src, dst=dst) / TCP(dport=int(dport), sport=int(sport)) / Raw(load=gen_payload(normal_payload_size[i+x]))
+        # Crea il batch di pacchetti
+        for x in range(min(args.batch_size, args.n_pkts - i)):
+            flow = list_flows[distr[i + x] % args.n_flows]
+            
+            if (not args.fixed):
+                src, dst, proto, sport, dport = flow           
             else:
-                pkt = Ether(src='01:00:0c:cc:cc:cc', dst='00:11:22:33:44:55') / IP(src=src, dst=dst) / UDP(dport=int(dport), sport=int(sport)) / Raw(load=gen_payload(normal_payload_size[i+x]))
+                _,_,proto,_,_=flow
+ 
+         # Crea pacchetto TCP o UDP
+            if proto == "TCP":
+                pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / TCP(dport=dport, sport=sport) / Raw(str(i + x))
+            else:
+                pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=dport, sport=sport) / Raw(str(i + x))
+
+            # Evita l'operazione ridondante
+            pkt = pkt.__class__(bytes(pkt)) if proto == "UDP" else pkt
             
             batch.append(pkt)
 
-        #aggiunge l'header di batching a tutti i pacchetti tranne l'ultimo con la lunghezza del successivo
-        for x in range(args.batch_size-1):
-            # pprint(batch)
+        # Aggiunge header di batching a tutti i pacchetti tranne l'ultimo
+        for x in range(args.batch_size - 1):
             pkt = batch[x]
-
-            #aggiungo l'header di batching al pacchetto
-            pkt = add_batching_header(pkt, len(batch[x+1]))
-            #aggiungo il payload al pacchetto
+            next_len = len(batch[x + 1])
+            pkt = add_batching_header(pkt, next_len) / Raw(batch[x + 1])
             pkts.append(pkt)
 
-        #ultimo pacchetto nel batch con next_len = 0
-        pkt = batch[args.batch_size-1]
-        pkt = add_batching_header(pkt, 0)
-        pkts.append(pkt)
 
- 
     return pkts
 
 
@@ -143,18 +224,19 @@ def n_pkt_to_int(arg):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     
-    parser.add_argument("--n_pkt", help="Numero di pacchetti da generare", default=10, type=n_pkt_to_int)
-    parser.add_argument("--n_flows", help="Numero di flussi da generare", type=int, default=4)
-    parser.add_argument("--l4_proto", help="Protocollo di livello quattro, [TCP | UDP  | MIX]", type=str, default="MIX", choices=["TCP", "UDP", "MIX"])
-    # parser.add_argument("--distribution", help="Parametro della distribuzione uniforme", type=bool)
+    parser.add_argument("--n_pkts", help="Numero di pacchetti da generare", default=10, type=n_pkt_to_int)
+    parser.add_argument("--n_flows", help="Numero di flussi da generare", type=n_pkt_to_int, default=4)
+    parser.add_argument("--l4_proto", help="Protocollo di livello quattro, [TCP | UDP  | MIX]", type=str, default="UDP", choices=["TCP", "UDP", "MIX"])
     parser.add_argument("--dist_param", help="Parametro della distribuzione scelta alfa per zip o locality per locality", type=int, default=2)
-    parser.add_argument("--distribution", help="Tipo di distribuzione [ZIPF | UNIFORM | LOCALITY]", type=str, default="ZIPF", choices=["ZIPF", "UNIFORM", "LOCALITY"])
+    parser.add_argument("--distribution", help="Tipo di distribuzione [ZIPF | UNIFORM | LOCALITY | RSS]", type=str, default="ZIPF", choices=["ZIPF", "UNIFORM", "LOCALITY", "RSS"])
     parser.add_argument("--output", help="Nome del file di output .pcap", type=str, default="batch")
     parser.add_argument("--batch_size", help="Dimensione del batch", type=int, default=2)
     parser.add_argument("--payload_size", help="Dimensione in valore medio del payload, è calcolata usando una distribuzione gaussiana centrata al valore passato con devstd=2",  type=int, default=10)
     parser.add_argument("--s_subnet", help="Subnet IP sorgente", type=str, default="0.0.0.0/0")
     parser.add_argument("--d_subnet", help="Subnet IP destinazione", type=str, default="0.0.0.0/0")
-    
+    parser.add_argument("--fixed", help="Set fixed value for dmac, smac, dport, sport", type=bool, default=False)
+    parser.add_argument("--n_queues",help="Numero di queues diverse per la suddivisione per hash",type=int,default=2)
+    parser.add_argument("--locality_size",help="Parametro della selezione dei pacchetti vicini o del numero di pacchetti scelti per ogni queue",type=int,default=2)
     args = parser.parse_args()
 
     # bind_bottom_up(BatchingHeader, Ether, type=0x1234)
@@ -163,7 +245,7 @@ if __name__ == "__main__":
     #test args
     # args.distribution ="LOCALITY"
     # args.dist_param = 2
-    # args.n_pkt = 10
+    # args.n_pkts = 10
     # args.n_flows = 10
     # args.batch_size= 2
 
@@ -174,9 +256,20 @@ if __name__ == "__main__":
     flows_packets = create_flows(args, flows_packets)
     # print(flows_packets)
 
-    pkts = gen_pkts(args, flows_packets)
         
-    output_filename=f"{args.output}_{args.distribution}_{args.n_pkt}pkts_{args.n_flows}flows.pcap"
+    output_filename=f"{args.output}_{args.distribution}_{args.n_pkts}pkts_{args.n_flows}flows.pcap"
+
+    if args.distribution == "RSS":
+        hashed_pkts, pkts = gen_pkts_rss(args, flows_packets)
+        print("Writing pcap1...")
+        wrpcap(output_filename, pkts)
+        print("Writing pcap2...")
+        wrpcap(f"hashed_{output_filename}", hashed_pkts)
+    else:
+        pkts = gen_pkts(args, flows_packets)
+        print("Writing pcap...")
+        wrpcap(output_filename, pkts) 
+
     
     # bind_layers( BatchingHeader, Ether, {'type':0} )
 
@@ -186,14 +279,7 @@ if __name__ == "__main__":
     # pcap_writer.write(pkts)
     # pcap_writer.close()
 
-
-    wrpcap(output_filename, pkts)    
-
-
-    print(pkts[0].show())
-    print(hexdump(pkts[0]))
-    pprint(pkts)
-
+       
 
     # Esempio di utilizzo della funzione modify_ethernet
     # example_pkt = Ether() / IP(dst="192.168.1.1") / UDP(dport=12345, sport=54321)/Raw(load=gen_payload(10))

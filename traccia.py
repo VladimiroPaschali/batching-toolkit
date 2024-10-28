@@ -56,8 +56,10 @@ def spacial_locality_dist(args):
     return spacial_list[: args.n_pkts]
 
 
+
+
 def gen_pktss(args, set_flows):
-    """Genera args.n_pkts pacchetti distribuiti secondo la distribuzione zipf con parametro args.locality_size partendo dai flussi set_flows"""
+    """Genera args.n_pkts pacchetti distribuiti secondo la distribuzione uniform e hashati con parametro args.locality_size partendo dai flussi set_flows"""
     list_flows = list(set_flows)
 
     distr = uniform_dist(args)
@@ -70,10 +72,17 @@ def gen_pktss(args, set_flows):
 
     # Inizia la barra di progresso
     for i in tqdm(
-        range(0, len(distr)), desc="Generazione pacchetti uniform", unit="pkt"
+        range(0, len(distr)), desc="Generazione pacchetti uniform e hashed", unit="pkt"
     ):
         flow = list_flows[distr[i] % args.n_flows]
         src, dst, proto, sport, dport = flow
+
+        # src = "192.168.101.1"
+        # dst = "192.168.101.2"
+        # sport = "2000"
+        # dport = "8901"
+        smac= "e8:eb:d3:78:95:8d"
+        dmac = "58:a2:e1:d0:69:ce"
 
         key = (
             compute_hash(get_input(src, dst, int(sport), int(dport)), 12)
@@ -81,18 +90,23 @@ def gen_pktss(args, set_flows):
 
         if proto == "TCP":
             pkt = (
-                Ether()
+                Ether(src=smac, dst=dmac)
                 / IP(src=src, dst=dst)
                 / TCP(dport=int(dport), sport=int(sport))
-                / Raw(load=gen_payload(normal_payload_size[i]))
+                # / Raw(load=gen_payload(normal_payload_size[i]))
+                / Raw(load=str(i))
+
             )
         else:
             pkt = (
-                Ether()
+                Ether(src=smac, dst=dmac)
                 / IP(src=src, dst=dst)
                 / UDP(dport=int(dport), sport=int(sport))
-                / Raw(load=gen_payload(normal_payload_size[i]))
+                # / Raw(load=gen_payload(normal_payload_size[i]))
+                / Raw(load=str(i))
             )
+        del pkt[IP].chksum
+        pkt = pkt.__class__(bytes(pkt))
 
         qpkts[key].append(pkt)
         pkts.append(pkt)
@@ -108,10 +122,13 @@ def gen_pktss(args, set_flows):
 
 
 def gen_pktss_chiesa(args, set_flows):
-    """Genera args.n_pkts pacchetti distribuiti secondo la distribuzione zipf con parametro args.locality_size partendo dai flussi set_flows"""
+    """Genera args.n_pkts pacchetti distribuiti secondo la distribuzione chiesa o zipf con parametro args.locality_size partendo dai flussi set_flows"""
     list_flows = list(set_flows)
 
-    distr = spacial_locality_dist(args)
+    if args.distribution == "ZIPF":
+        distr = numpy.random.zipf(a=args.locality_size, size=args.n_pkts)
+    elif args.distribution == "LOCALITY":
+        distr = spacial_locality_dist(args)
 
     normal_payload_size = [
         int(random.normalvariate(args.payload_size, 2)) for _ in range(args.n_pkts)
@@ -119,8 +136,9 @@ def gen_pktss_chiesa(args, set_flows):
     pkts = []
 
     # Inizia la barra di progresso
+    descr = "Generazione pacchetti "+args.distribution
     for i in tqdm(
-        range(0, len(distr)), desc="Generazione pacchetti locality", unit="pkt"
+        range(0, len(distr)), desc=descr, unit="pkt"
     ):
         flow = list_flows[distr[i] % args.n_flows]
         src, dst, proto, sport, dport = flow
@@ -182,7 +200,7 @@ if __name__ == "__main__":
         "--l4_proto",
         help="Protocollo di livello quattro, [TCP | UDP  | MIX]",
         type=str,
-        default="MIX",
+        default="UDP",
         choices=["TCP", "UDP", "MIX"],
     )
     parser.add_argument(
@@ -195,11 +213,11 @@ if __name__ == "__main__":
         "--distribution",
         help="Tipo di distribuzione [ZIPF | UNIFORM | LOCALITY]",
         type=str,
-        default="LOCALITY",
+        default="UNIFORM",
         choices=["ZIPF", "UNIFORM", "LOCALITY"],
     )
     parser.add_argument(
-        "--output", help="Nome del file di output .pcap", type=str, default="batch"
+        "--output", help="Nome del file di output .pcap", type=str, default=""
     )
     parser.add_argument(
         "--payload_size",
@@ -226,13 +244,14 @@ if __name__ == "__main__":
     flows = create_flows(args, flows_pkts)
 
     output_filename = (
-        f"{args.output}_{args.distribution}_{args.n_pkts}pkts_{args.n_flows}flows.pcap"
+        f"{args.output}{args.distribution}_{args.n_pkts}pkts_{args.n_flows}flows.pcap"
     )
 
     # hashed
     if args.distribution == "UNIFORM":
         output_pkts, pkts = gen_pktss(args, flows)
         offset = 0
+        print(pkts[0].show())
         print("Writing pcap...")
         wrpcap(output_filename, pkts)
         wrpcap(f"hashed_{output_filename}", output_pkts)
