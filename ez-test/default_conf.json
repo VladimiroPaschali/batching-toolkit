@@ -1,0 +1,13 @@
+{
+    "ifname": "eth0",
+    "exp-dir": "",
+    "progs": [
+        "drop"
+    ],
+    "exp-time-sec": 10,
+    "check-load": true,
+    "bpf-stats": true,
+    "perf-b": true,
+    "results-output-dir": "",
+    "result-output": "csv"
+}

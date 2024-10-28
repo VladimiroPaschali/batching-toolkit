@@ -1,0 +1,11 @@
+{
+    "ebpfDirs": [
+        "/path/to/ebpf/program1",
+        "/path/to/ebpf/program2"
+    ],
+    "ebpfExts": [
+        "c",
+        "bpf.c"
+    ],
+    "ebpfIgnore": []
+}

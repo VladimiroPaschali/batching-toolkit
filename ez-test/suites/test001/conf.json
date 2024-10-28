@@ -1,0 +1,7 @@
+{
+    "progs": [
+        "drop"
+    ],
+    "bpf-stats": true,
+    "perf-b": true
+}
