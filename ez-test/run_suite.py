@@ -24,15 +24,17 @@ def _load_program(program_path: str, ifname: str, logpath:str) -> sp.Popen:
     process = sp.Popen(shlex.split(command),stdout=sp.PIPE,text=True)
     print(f"Running program: {os.path.basename(program_path)}")
     _append_to_log(logpath, f"Running program: {os.path.basename(program_path)}\n")
+
+    sleep(1)
    
     return process
 
-def _term_process(process: sp.Popen, logpath:str) -> int:
+def _term_program(process: sp.Popen, logpath:str) -> int:
 
     process.terminate()
-    print(f"Process terminated")
+    print(f"program terminated")
     _append_to_log(logpath, process.stdout.read())
-    _append_to_log(logpath, "Process terminated\n")
+    _append_to_log(logpath, "program terminated\n")
     return 0
 
 def _append_to_log(log_path: str, data: str) -> int:
@@ -45,13 +47,13 @@ def _clear_log(log_path: str) -> int:
         pass
     return 0
 
-def _compute_throughput(ioctlpath:str) -> int:
-    command = f"sudo {ioctlpath} 2"
+def _compute_throughput(ioctlpath:str, time:int) -> int:
+    command = f"sudo {ioctlpath} 3 {time}"
     try:
         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
 
     except sp.CalledProcessError as e:
-        print("Error ./ioctl 2 command")
+        print(f"Error ./ioctl 3 {time} command")
         return -1
     
     return int(result.stdout)
@@ -104,37 +106,63 @@ def run_suite(suite_cfg:json, name:str) -> int:
     ioctlpath = os.path.join(os.path.abspath(suite_cfg["ioctl-dir"]), "ioctl")
     time = suite_cfg["time"]
     cpu = suite_cfg["cpu"]
+    repetitions = suite_cfg["repetitions"]
 
     #clear logfile
     _clear_log(logpath)
 
 
-
     for program in suite_cfg["progs"]:
-        absolute_path=os.path.join(absolute_path, program["path"])
+        program_path=os.path.join(absolute_path, program["path"])
 
-        process = _load_program(absolute_path, ifname, logpath)
+
+        avg_throughput=[]
+        avg_ipc=[]
+        avg_cache_misses=[]
+
+        for repetition in range(repetitions):
+
+            process = _load_program(program_path, ifname, logpath)
+
+
+            _append_to_log(logpath, f"Repetition: {repetition+1}\n")
+            print(f"Repetition: {repetition+1}")
+
+            if suite_cfg["throughput"]:
+                throughput = _compute_throughput(ioctlpath, time) // time 
+                avg_throughput.append(throughput)
+                _append_to_log(logpath, f"Throughput: {throughput} packets/s\n")
+                print(f"Throughput: {throughput} packets/s")
+
+
+            if suite_cfg["perfIPC"]:
+                ipc = _perf_ipc(cpu, time)
+                avg_ipc.append(ipc)
+                _append_to_log(logpath, f"IPC: {ipc}\n")
+                print(f"IPC: {ipc}")
+            
+            if suite_cfg["perfCacheMisses"]:
+                cache_misses = _perf_cache_misses(cpu, time)
+                avg_cache_misses.append(cache_misses)
+                _append_to_log(logpath, f"Cache misses: {cache_misses}\n")
+                print(f"Cache misses: {cache_misses}")
+
+            _term_program(process, logpath)
+
         if suite_cfg["throughput"]:
-            pre_throughput = _compute_throughput(ioctlpath)
-            # print(f"Pre throughput: {pre_throughput} packets")
-
-        sleep(time)
-
-        if suite_cfg["throughput"]:
-            post_throughput = _compute_throughput(ioctlpath)
-            throughput = (post_throughput - pre_throughput) // time
-            _append_to_log(logpath, f"Throughput: {throughput} packets/s\n")
-            print(f"Throughput: {throughput} packets/s")
+            avg_throughput = sum(avg_throughput) / repetitions
+            _append_to_log(logpath, f"Average throughput: {avg_throughput} packets/s\n")
+            print(f"Average throughput: {avg_throughput} packets/s")
 
         if suite_cfg["perfIPC"]:
-            ipc = _perf_ipc(cpu, time)
-            _append_to_log(logpath, f"IPC: {ipc}\n")
-            print(f"IPC: {ipc}")
-        
-        if suite_cfg["perfCacheMisses"]:
-            cache_misses = _perf_cache_misses(cpu, time)
-            _append_to_log(logpath, f"Cache misses: {cache_misses}\n")
-            print(f"Cache misses: {cache_misses}")
+            avg_ipc = sum(avg_ipc) / repetitions
+            _append_to_log(logpath, f"Average IPC: {avg_ipc}\n")
+            print(f"Average IPC: {avg_ipc}")
 
-        _term_process(process, logpath)      
+        if suite_cfg["perfCacheMisses"]:
+            avg_cache_misses = sum(avg_cache_misses) / repetitions
+            _append_to_log(logpath, f"Average Cache misses: {avg_cache_misses}\n")
+            print(f"Average Cache misses: {avg_cache_misses}")
+
+
     return 0
