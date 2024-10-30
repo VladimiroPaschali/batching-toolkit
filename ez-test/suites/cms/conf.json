@@ -2,20 +2,12 @@
     "ifname": "ens8191f0np0",
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir":"/home/vladimiro/mellanox_batching/utils",
-    "time": 3,
+    "time": 10,
     "repetitions":3,
     "progs": [
         {
-            "name": "drop",
-            "path": "bdrop/bdrop"
-        },
-        {
-            "name": "pass",
-            "path": "bpass/bpass"
-        },
-        {
-            "name": "bcms",
-            "path": "bcms/bcms"
+            "name": "cms",
+            "path": "bcms/cms"
         }
     ],
     "bpf-stats": false,

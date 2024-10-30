@@ -1,0 +1,26 @@
+{
+    "ifname": "ens8191f0np0",
+    "exp-dir": "/home/vladimiro/bxdp",
+    "ioctl-dir":"/home/vladimiro/mellanox_batching/utils",
+    "time": 10,
+    "repetitions":3,
+    "progs": [
+        {
+            "name": "bdrop",
+            "path": "bdrop/bdrop"
+        },
+        {
+            "name": "bpass",
+            "path": "bpass/bpass"
+        },
+        {
+            "name": "bcms",
+            "path": "bcms/bcms"
+        }
+    ],
+    "bpf-stats": false,
+    "throughput": true,
+    "cpu": 0,
+    "perfIPC": true,
+    "perfCacheMisses":true
+}

@@ -58,12 +58,29 @@ def _compute_throughput(ioctlpath:str, time:int) -> int:
     
     return int(result.stdout)
 
-def _perf_ipc(cpu, time) -> int:
-    command = f"sudo perf stat -e cycles:k,instructions:k -C {cpu} --timeout {time*1000}"
-
+def _bpftool_id(name):
+    command = f"sudo bpftool prog show name {name}"
     try:
         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
 
+    except sp.CalledProcessError as e:
+        print("Error bpftool prog show command")
+        return -1
+        
+    match = re.search(r'(\d+):\s*xdp', result.stdout)
+    if match:
+        return int(match.group(1))
+    else:
+        return -1
+
+# def _perf_ipc(cpu,time) -> int:
+def _perf_ipc(time, name) -> int:
+
+    # command = f"sudo perf stat -e cycles:k,instructions:k -C {cpu} --timeout {time*1000}"
+    bpftool_id = _bpftool_id(name)
+    command = f"sudo perf_bpf stat -b {bpftool_id} -e cycles,instructions --timeout {time*1000}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
     except sp.CalledProcessError as e:
         print("Error perf IPC command")
         return -1
@@ -74,9 +91,12 @@ def _perf_ipc(cpu, time) -> int:
     else:
         return -1
     
-def _perf_cache_misses(cpu, time) -> int:
-    command= f"sudo perf_bpf stat -e L1-dcache-load-misses:k -C {cpu} --timeout {time*1000}"
+# def _perf_cache_misses(cpu, time) -> int:
+def _perf_cache_misses(time, name) -> int:
 
+    # command= f"sudo perf_bpf stat -e L1-dcache-load-misses:k -C {cpu} --timeout {time*1000}"
+    bpftool_id = _bpftool_id(name)
+    command= f"sudo perf_bpf stat -b {bpftool_id} -e L1-dcache-load-misses --timeout {time*1000}"
     try:
         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
 
@@ -88,7 +108,6 @@ def _perf_cache_misses(cpu, time) -> int:
     match1 = re.search(r'([\d,]+)\s+L1-dcache-load-misses', result.stderr)
     cache_misses = int(match1.group(1).replace(",","")) if match1 else -1
 
-    # Trova il valore numerico a destra di "run:"
     match2 = re.search(r'run:\s*(\d+)', result.stderr)
     run_count = int(match2.group(1)) if match2 else -1
 
@@ -97,8 +116,6 @@ def _perf_cache_misses(cpu, time) -> int:
 
 def run_suite(suite_cfg:json, name:str) -> int:
 
-    # if os.geteuid() != 0:
-    #     exit("You need to have root privileges to run this script.\nPlease try again, this time using 'sudo'. Exiting.")
     
     absolute_path = os.path.abspath(suite_cfg["exp-dir"])
     ifname = suite_cfg["ifname"]
@@ -114,6 +131,7 @@ def run_suite(suite_cfg:json, name:str) -> int:
 
     for program in suite_cfg["progs"]:
         program_path=os.path.join(absolute_path, program["path"])
+        program_name = program["name"]
 
 
         avg_throughput=[]
@@ -136,13 +154,15 @@ def run_suite(suite_cfg:json, name:str) -> int:
 
 
             if suite_cfg["perfIPC"]:
-                ipc = _perf_ipc(cpu, time)
+                # ipc = _perf_ipc(cpu,time)
+                ipc = _perf_ipc(time, program_name)
                 avg_ipc.append(ipc)
                 _append_to_log(logpath, f"IPC: {ipc}\n")
                 print(f"IPC: {ipc}")
             
             if suite_cfg["perfCacheMisses"]:
-                cache_misses = _perf_cache_misses(cpu, time)
+                # cache_misses = _perf_cache_misses(cpu,time)
+                cache_misses = _perf_cache_misses(time, program_name)
                 avg_cache_misses.append(cache_misses)
                 _append_to_log(logpath, f"Cache misses: {cache_misses}\n")
                 print(f"Cache misses: {cache_misses}")

@@ -62,6 +62,8 @@ def create(name):
 @click.command()
 @click.option("--name", help="Name of the suite to run")
 def run(name):
+    if os.geteuid() != 0:
+        exit("You need to have root privileges to run this script.\nPlease try again, this time using 'sudo'. Exiting.")
     if not name:
         print("Please specify a suite to run")
         return 1
