@@ -191,6 +191,8 @@ def gen_pkts(args, set_flows):
                 pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / TCP(dport=dport, sport=sport) / Raw(str(i + x))
             else:
                 pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=dport, sport=sport) / Raw(str(i + x))
+                # pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=dport, sport=sport) / Raw(str(i + x)*((x+1)*40)) #payload diversi tra primo e secondo pacchetto
+
 
             # Evita l'operazione ridondante
             pkt = pkt.__class__(bytes(pkt)) if proto == "UDP" else pkt
@@ -200,8 +202,9 @@ def gen_pkts(args, set_flows):
         # Aggiunge header di batching a tutti i pacchetti tranne l'ultimo
         for x in range(args.batch_size - 1):
             pkt = batch[x]
-            next_len = len(batch[x + 1])
-            pkt = add_batching_header(pkt, next_len) / Raw(batch[x + 1])
+            # next_len = len(batch[x + 1])
+            this_len = len(batch[x])
+            pkt = add_batching_header(pkt, this_len) / Raw(batch[x + 1])
             pkts.append(pkt)
 
 
