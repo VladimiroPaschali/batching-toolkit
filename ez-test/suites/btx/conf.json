@@ -6,8 +6,8 @@
     "repetitions":3,
     "progs": [
         {
-            "name": "bcms",
-            "path": "bcms/bcms"
+            "name": "btx",
+            "path": "btx/btx"
         }
     ],
     "bpf-stats": false,
