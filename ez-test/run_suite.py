@@ -145,7 +145,6 @@ def run_suite(suite_cfg:json, name:str) -> int:
     #sets ioctl if batched mode else resets
     _batched(ioctlpath,suite_cfg["batched"])
 
-    return 0
 
     for program in suite_cfg["progs"]:
         program_path=os.path.join(absolute_path, program["path"])
