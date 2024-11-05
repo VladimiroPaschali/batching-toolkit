@@ -1,0 +1,18 @@
+{
+    "ifname": "enp202s0f1np1",
+    "exp-dir": "/home/vladimiro/bxdp",
+    "ioctl-dir":"/home/andrea/mellanox_batching/utils",
+    "time": 10,
+    "repetitions":3,
+    "progs": [
+        {
+            "name": "conntrack",
+            "path": "conntrack/conntrack"
+        }
+    ],
+    "bpf-stats": false,
+    "throughput": true,
+    "cpu": 0,
+    "perfIPC": true,
+    "perfCacheMisses":true
+}
