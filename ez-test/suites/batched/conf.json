@@ -18,6 +18,7 @@
             "path": "cms/bcms"
         }
     ],
+    "batched": true,
     "bpf-stats": false,
     "throughput": true,
     "cpu": 0,

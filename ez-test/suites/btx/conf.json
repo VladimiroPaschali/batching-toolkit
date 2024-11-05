@@ -10,6 +10,7 @@
             "path": "tx/btx"
         }
     ],
+    "batched": true,
     "bpf-stats": false,
     "throughput": true,
     "cpu": 0,

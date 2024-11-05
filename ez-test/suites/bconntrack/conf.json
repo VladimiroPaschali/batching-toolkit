@@ -10,6 +10,7 @@
             "path": "conntrack/bconntrack"
         }
     ],
+    "batched": true,
     "bpf-stats": false,
     "throughput": true,
     "cpu": 0,

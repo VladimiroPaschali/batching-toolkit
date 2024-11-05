@@ -6,16 +6,8 @@
     "repetitions":3,
     "progs": [
         {
-            "name": "drop",
-            "path": "drop/drop"
-        },
-        {
-            "name": "pass",
-            "path": "pass/pass"
-        },
-        {
-            "name": "cms",
-            "path": "cms/cms"
+            "name": "router",
+            "path": "router/router"
         }
     ],
     "batched": false,

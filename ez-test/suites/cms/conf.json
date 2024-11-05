@@ -10,6 +10,7 @@
             "path": "cms/cms"
         }
     ],
+    "batched": false,
     "bpf-stats": false,
     "throughput": true,
     "cpu": 0,

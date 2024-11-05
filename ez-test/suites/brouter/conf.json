@@ -6,19 +6,11 @@
     "repetitions":3,
     "progs": [
         {
-            "name": "drop",
-            "path": "drop/drop"
-        },
-        {
-            "name": "pass",
-            "path": "pass/pass"
-        },
-        {
-            "name": "cms",
-            "path": "cms/cms"
+            "name": "brouter",
+            "path": "router/brouter"
         }
     ],
-    "batched": false,
+    "batched": true,
     "bpf-stats": false,
     "throughput": true,
     "cpu": 0,

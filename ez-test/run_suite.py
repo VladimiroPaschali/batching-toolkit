@@ -113,6 +113,20 @@ def _perf_cache_misses(time, name) -> int:
 
     return cache_misses/run_count
 
+def _batched(ioctlpath ,batch) -> int:
+
+    ioctlval = int(batch)
+    command = f"sudo {ioctlpath} {ioctlval}"
+    print(command)
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+    except sp.CalledProcessError as e:
+        print(f"Error ./ioctl {ioctlval} command")
+        return -1
+    
+    return 0
+
 
 def run_suite(suite_cfg:json, name:str) -> int:
 
@@ -128,6 +142,10 @@ def run_suite(suite_cfg:json, name:str) -> int:
     #clear logfile
     _clear_log(logpath)
 
+    #sets ioctl if batched mode else resets
+    _batched(ioctlpath,suite_cfg["batched"])
+
+    return 0
 
     for program in suite_cfg["progs"]:
         program_path=os.path.join(absolute_path, program["path"])
