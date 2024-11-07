@@ -22,7 +22,15 @@ class BatchingHeader(Packet):
 
 def add_batching_header(pkt,next_len):
     '''Aggiunge un header di batching al pacchetto pkt con la lunghezza del prossimo pacchetto next_len'''
-    custom_header = BatchingHeader(next_len=next_len)
+    #ultimi 12 bit del next_len
+    header = next_len & 0xFFF
+    #primi 4 bit dell'header
+    # 1 se il primo pacchetto è da trasmettere
+    firtsvalid = 1 << 12
+    # 1 se il secondo pacchetto è da trasmettere
+    secondvalid = 1 << 13
+    header = header | firtsvalid | secondvalid
+    custom_header = BatchingHeader(next_len=header)
     return custom_header/pkt
 
 def gen_payload(size):
