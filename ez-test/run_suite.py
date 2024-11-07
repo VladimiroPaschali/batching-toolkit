@@ -127,6 +127,25 @@ def _batched(ioctlpath ,batch) -> int:
     
     return 0
 
+def _perf_ipp(ioctlpath,cpu, time) -> int:
+
+    pkts = _compute_throughput(ioctlpath, time)
+
+    command = f"sudo perf stat -e instructions:k -C {cpu} --timeout {time*1000}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+    except sp.CalledProcessError as e:
+        print("Error perf IPC command")
+        return -1
+    
+    match = re.search(r'([\d.]+)\s+insn per cycle', result.stderr)
+    if match:
+        instructions = float(match.group(1))
+        return instructions/pkts
+    else:
+        return -1
+
 
 def run_suite(suite_cfg:json, name:str) -> int:
 
@@ -153,6 +172,7 @@ def run_suite(suite_cfg:json, name:str) -> int:
 
         avg_throughput=[]
         avg_ipc=[]
+        avg_ipp=[]
         avg_cache_misses=[]
 
         for repetition in range(repetitions):
@@ -184,6 +204,13 @@ def run_suite(suite_cfg:json, name:str) -> int:
                 _append_to_log(logpath, f"Cache misses: {cache_misses}\n")
                 print(f"Cache misses: {cache_misses}")
 
+            if suite_cfg["perfIPP"]:
+                # ipc = _perf_ipc(cpu,time)
+                ipp = _perf_ipp(ioctlpath,cpu,time)
+                avg_ipp.append(ipp)
+                _append_to_log(logpath, f"IPP: {ipp}\n")
+                print(f"IPP: {ipp}")
+
             _term_program(process, logpath)
 
         if suite_cfg["throughput"]:
@@ -200,6 +227,11 @@ def run_suite(suite_cfg:json, name:str) -> int:
             avg_cache_misses = sum(avg_cache_misses) / repetitions
             _append_to_log(logpath, f"Average Cache misses: {avg_cache_misses}\n")
             print(f"Average Cache misses: {avg_cache_misses}")
+
+        if suite_cfg["perfIPP"]:
+            avg_ipp = sum(avg_ipp) / repetitions
+            _append_to_log(logpath, f"Average IPP: {avg_ipp}\n")
+            print(f"Average IPC: {avg_ipp}")
 
 
     return 0
