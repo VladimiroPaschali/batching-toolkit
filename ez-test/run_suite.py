@@ -232,7 +232,7 @@ def run_suite(suite_cfg:json, name:str) -> int:
         if suite_cfg["perfIPP"]:
             avg_ipp = sum(avg_ipp) / repetitions
             _append_to_log(logpath, f"Average IPP: {avg_ipp}\n")
-            print(f"Average IPC: {avg_ipp}")
+            print(f"Average IPP: {avg_ipp}")
 
 
     return 0
