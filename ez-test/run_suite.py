@@ -81,6 +81,7 @@ def _perf_ipc(time, name) -> int:
     command = f"sudo perf_bpf stat -b {bpftool_id} -e cycles,instructions --timeout {time*1000}"
     try:
         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+        # print(result.stderr)
     except sp.CalledProcessError as e:
         print("Error perf IPC command")
         return -1
@@ -101,7 +102,7 @@ def _perf_cache_misses(time, name) -> int:
         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
 
     except sp.CalledProcessError as e:
-        print("Error perf IPC command")
+        print("Error perf cache misses command")
         return -1
     # print(result.stderr)
 
@@ -134,17 +135,17 @@ def _perf_ipp(ioctlpath,cpu, time) -> int:
     command = f"sudo perf stat -e instructions:k -C {cpu} --timeout {time*1000}"
     try:
         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+        # print(result.stderr)
 
     except sp.CalledProcessError as e:
         print("Error perf IPC command")
         return -1
     
-    match = re.search(r'([\d.]+)\s+insn per cycle', result.stderr)
-    if match:
-        instructions = float(match.group(1))
-        return instructions/pkts
-    else:
-        return -1
+    match = re.search(r'([\d,]+)\s+instructions', result.stderr)
+    instructions = int(match.group(1).replace(",","")) if match else -1
+    # print(f"Instructions: {instructions}")
+    return instructions/pkts
+    
 
 
 def run_suite(suite_cfg:json, name:str) -> int:
