@@ -14,5 +14,6 @@
     "throughput": true,
     "cpu": 0,
     "perfIPC": true,
-    "perfCacheMisses":true
+    "perfCacheMisses":true,
+    "perfIPP": true
 }
