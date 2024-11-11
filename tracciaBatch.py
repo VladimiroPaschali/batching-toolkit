@@ -247,7 +247,7 @@ if __name__ == "__main__":
     parser.add_argument("--d_subnet", help="Subnet IP destinazione", type=str, default="0.0.0.0/0")
     parser.add_argument("--fixed", help="Set fixed value for dmac, smac, dport, sport", type=bool, default=False)
     parser.add_argument("--n_queues",help="Numero di queues diverse per la suddivisione per hash",type=int,default=2)
-    parser.add_argument("--locality_size",help="Parametro della selezione dei pacchetti vicini o del numero di pacchetti scelti per ogni queue",type=int,default=2)
+    parser.add_argument("--locality_size",help="Parametro della selezione dei pacchetti vicini o del numero di pacchetti scelti per ogni queue",type=n_pkt_to_int,default=2)
     args = parser.parse_args()
 
     # bind_bottom_up(BatchingHeader, Ether, type=0x1234)

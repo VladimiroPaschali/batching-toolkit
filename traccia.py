@@ -206,7 +206,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--locality_size",
         help="Parametro della selezione dei pacchetti vicini o del numero di pacchetti scelti per ogni queue",
-        type=int,
+        type=n_pkts_to_int,
         default=2,
     )
     parser.add_argument(
