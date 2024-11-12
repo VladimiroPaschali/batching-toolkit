@@ -36,9 +36,9 @@ def _clear_file(log_path: str) -> int:
         pass
     return 0
 
-def _load_config() -> dict:
+def _load_config(configpath) -> dict:
     try:
-        with open("config.json", "r") as f:
+        with open(configpath, "r") as f:
             config = json.load(f)
     except FileNotFoundError:
         print("Config not found")
@@ -122,6 +122,20 @@ def _compute_throughput(ioctlpath:str, time:int) -> int:
     
     return int(result.stdout)
 
+def _batched(ioctlpath ,batch) -> int:
+
+    ioctlval = int(batch)
+    command = f"sudo {ioctlpath} {ioctlval}"
+    print(command)
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+    except sp.CalledProcessError as e:
+        print(f"Error ./ioctl {ioctlval} command")
+        return -1
+    
+    return 0
+
 
 
 def main():
@@ -129,13 +143,19 @@ def main():
     if os.geteuid() != 0:
         exit("You need to have root privileges to run this script.\nPlease try again, this time using 'sudo'. Exiting.")
     
-    config = _load_config()
+    configpath = "config.json"
+    # configpath = "configBatched.json"
+
+    config = _load_config(configpath)
     logpath = "log.txt"
     csvpath = "pcm.csv"
     ioctlpath = os.path.join(os.path.abspath(config["ioctl-dir"]), "ioctl")
     ifname = config["ifname"]
     absolute_path = os.path.abspath(config["exp-dir"])
     pmciterations = config["pmc-iterations"]
+
+    #sets ioctl if batched mode else resets
+    _batched(ioctlpath,config["batched"])
 
     _clear_file(logpath)
     _init_csv()

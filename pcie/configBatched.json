@@ -3,19 +3,19 @@
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir":"/home/andrea/mellanox_batching/utils",
     "pmc-iterations":30,
-    "batched": false,
+    "batched": true,
     "progs": [
         {
-            "name": "drop",
-            "path": "drop/drop"
+            "name": "bdrop",
+            "path": "drop/bdrop"
         },
         {
-            "name": "cms",
-            "path": "cms/cms"
+            "name": "bcms",
+            "path": "cms/bcms"
         },
         {
-            "name": "pass",
-            "path": "pass/pass"
+            "name": "bpass",
+            "path": "pass/bpass"
         }
     ]
 
