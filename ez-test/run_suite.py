@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import re
@@ -42,10 +43,29 @@ def _append_to_log(log_path: str, data: str) -> int:
         f.write(data)
     return 0
 
-def _clear_log(log_path: str) -> int:
+def _clear_file(log_path: str) -> int:
     with open(log_path, "w") as f:
         pass
     return 0
+
+def _init_csv(csv_path: str, suite_cfg:str) -> int:
+    fields = ["program"]
+    if suite_cfg["throughput"]:
+        fields.append("throughput")
+    if suite_cfg["perfIPC"]:
+        fields.append("IPC")
+    if suite_cfg["perfCacheMisses"]:
+        fields.append("CacheMisses")
+    if suite_cfg["perfIPP"]:
+        fields.append("IPP")
+    with open(csv_path, "w",newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(fields)
+
+def _append_to_csv(csv_path: str, data: list) -> int:
+    with open(csv_path, "a") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(data)
 
 def _compute_throughput(ioctlpath:str, time:int) -> int:
     command = f"sudo {ioctlpath} 3 {time}"
@@ -155,12 +175,15 @@ def run_suite(suite_cfg:json, name:str) -> int:
     ifname = suite_cfg["ifname"]
     logpath = os.path.join(os.getcwd(),"suites", name, "log.txt")
     ioctlpath = os.path.join(os.path.abspath(suite_cfg["ioctl-dir"]), "ioctl")
+    csvpath = os.path.join(os.getcwd(),"suites", name, "results.csv")
     time = suite_cfg["time"]
     cpu = suite_cfg["cpu"]
     repetitions = suite_cfg["repetitions"]
-
+    
+    #clear csv and sets up fiels
+    _init_csv(csvpath, suite_cfg)
     #clear logfile
-    _clear_log(logpath)
+    _clear_file(logpath)
 
     #sets ioctl if batched mode else resets
     _batched(ioctlpath,suite_cfg["batched"])
@@ -175,6 +198,8 @@ def run_suite(suite_cfg:json, name:str) -> int:
         avg_ipc=[]
         avg_ipp=[]
         avg_cache_misses=[]
+
+        csvdata = [program_name]
 
         for repetition in range(repetitions):
 
@@ -216,23 +241,29 @@ def run_suite(suite_cfg:json, name:str) -> int:
 
         if suite_cfg["throughput"]:
             avg_throughput = sum(avg_throughput) / repetitions
+            csvdata.append(avg_throughput)
             _append_to_log(logpath, f"Average throughput: {avg_throughput} packets/s\n")
             print(f"Average throughput: {avg_throughput} packets/s")
+            
 
         if suite_cfg["perfIPC"]:
             avg_ipc = sum(avg_ipc) / repetitions
+            csvdata.append(avg_ipc)
             _append_to_log(logpath, f"Average IPC: {avg_ipc}\n")
             print(f"Average IPC: {avg_ipc}")
 
         if suite_cfg["perfCacheMisses"]:
             avg_cache_misses = sum(avg_cache_misses) / repetitions
+            csvdata.append(avg_cache_misses)
             _append_to_log(logpath, f"Average Cache misses: {avg_cache_misses}\n")
             print(f"Average Cache misses: {avg_cache_misses}")
 
         if suite_cfg["perfIPP"]:
             avg_ipp = sum(avg_ipp) / repetitions
+            csvdata.append(avg_ipp)
             _append_to_log(logpath, f"Average IPP: {avg_ipp}\n")
             print(f"Average IPP: {avg_ipp}")
 
+        _append_to_csv(csvpath, csvdata)
 
     return 0

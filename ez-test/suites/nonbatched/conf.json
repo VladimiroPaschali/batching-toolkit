@@ -3,7 +3,7 @@
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir":"/home/andrea/mellanox_batching/utils",
     "time": 10,
-    "repetitions":3,
+    "repetitions":2,
     "progs": [
         {
             "name": "drop",
@@ -16,6 +16,18 @@
         {
             "name": "cms",
             "path": "cms/cms"
+        },
+        {
+            "name": "conntrack",
+            "path": "conntrack/conntrack"
+        },
+        {
+            "name": "router",
+            "path": "router/router"
+        },
+        {
+            "name": "tx",
+            "path": "tx/tx"
         }
     ],
     "batched": false,
