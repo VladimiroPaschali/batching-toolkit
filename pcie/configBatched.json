@@ -2,7 +2,7 @@
     "ifname":"enp202s0f1np1",
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir":"/home/andrea/mellanox_batching/utils",
-    "pmc-iterations":30,
+    "pmc-iterations":10,
     "batched": true,
     "progs": [
         {
@@ -10,8 +10,8 @@
             "path": "drop/bdrop"
         },
         {
-            "name": "bcms",
-            "path": "cms/bcms"
+            "name": "btx",
+            "path": "tx/btx"
         },
         {
             "name": "bpass",
