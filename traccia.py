@@ -148,14 +148,18 @@ def gen_pktss_chiesa(args, set_flows):
                 Ether()
                 / IP(src=src, dst=dst)
                 / TCP(dport=int(dport), sport=int(sport))
-                / Raw(load=gen_payload(normal_payload_size[i]))
+                # / Raw(load=gen_payload(normal_payload_size[i]))
+                / Raw(load=str(i))
+
             )
         else:
             pkt = (
                 Ether()
                 / IP(src=src, dst=dst)
                 / UDP(dport=int(dport), sport=int(sport))
-                / Raw(load=gen_payload(normal_payload_size[i]))
+                # / Raw(load=gen_payload(normal_payload_size[i]))
+                / Raw(load=str(i))
+
             )
 
         pkts.append(pkt)
