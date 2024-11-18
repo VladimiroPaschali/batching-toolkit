@@ -1,3 +1,4 @@
+from pprint import pprint
 from typing import Type
 from scapy.all import *
 import argparse 
@@ -15,23 +16,34 @@ class BatchingHeader(Packet):
     '''definizione del formato del pacchetto di batching'''
     name = "BatchingHeader"
     fields_desc = [
-        ShortField("next_len", 0),
+        BitField("custom", 0, 64)
     ]
     linktype = ETHER_TYPES
 
 
-def add_batching_header(pkt,next_len):
-    '''Aggiunge un header di batching al pacchetto pkt con la lunghezza del prossimo pacchetto next_len'''
-    #ultimi 12 bit del next_len
-    header = next_len & 0xFFF
-    #primi 4 bit dell'header
-    # 1 se il primo pacchetto è da trasmettere
-    firtsvalid = 1 << 12
-    # 1 se il secondo pacchetto è da trasmettere
-    secondvalid = 1 << 13
-    header = header | firtsvalid | secondvalid
-    custom_header = BatchingHeader(next_len=header)
-    return custom_header/pkt
+def add_batching_header(batch:list):
+    '''Aggiunge un header di batching ai pacchetti nel batch'''
+    if len(batch) == 2:
+        header = 1<<49 |1<<48 | len(batch[0]) << 32 | len(batch[1]) << 16
+        custom_header = BatchingHeader(custom = header)
+    elif len(batch) == 3:
+
+        header = 1<<50 |1<<49 |1<<48 | len(batch[0]) << 32 | len(batch[1])<<16 | len(batch[2])
+        custom_header = BatchingHeader(custom = header)
+    elif len(batch) == 4:
+        header = 1<<51 |1<<50 |1<<49 |1<<48 | len(batch[0]) << 32 | len(batch[1])<<16 | len(batch[2])
+        custom_header = BatchingHeader(custom = header)
+    else:
+        print("Batch size non valido")
+
+    pkt = batch[0]
+    for i in range(1,len(batch)):
+        pkt = pkt / batch[i]
+        
+    pkt = custom_header/pkt
+
+    pkt = pkt.__class__(bytes(pkt))
+    return pkt
 
 def gen_payload(size):
     '''genera una stringa di dimensione size da usare come payload'''
@@ -130,12 +142,15 @@ def gen_pkts_rss(args, set_flows):
             pkt = pkts[i + x]
             batch.append(pkt)
 
-        # Aggiunge header di batching a tutti i pacchetti tranne l'ultimo
-        for x in range(args.batch_size - 1):
-            pkt = batch[x]
-            next_len = len(batch[x + 1])
-            pkt = add_batching_header(pkt, next_len) / Raw(batch[x + 1])
-            batched_pkts.append(pkt)
+        # # Aggiunge header di batching a tutti i pacchetti tranne l'ultimo
+        # for x in range(args.batch_size - 1):
+        #     pkt = batch[x]
+        #     next_len = len(batch[x + 1])
+        #     pkt = add_batching_header(pkt, next_len) / Raw(batch[x + 1])
+        #     batched_pkts.append(pkt)
+        pkt = add_batching_header(batch)
+        pkts.append(pkt)
+
     
     #batch hashed pkts
     batched_hashed_pkts = []
@@ -145,12 +160,15 @@ def gen_pkts_rss(args, set_flows):
             pkt = hashed_pkts[i + x]
             batch.append(pkt)
 
-        # Aggiunge header di batching a tutti i pacchetti tranne l'ultimo
-        for x in range(args.batch_size - 1):
-            pkt = batch[x]
-            next_len = len(batch[x + 1])
-            pkt = add_batching_header(pkt, next_len) / Raw(batch[x + 1])
-            batched_hashed_pkts.append(pkt)
+        # # Aggiunge header di batching a tutti i pacchetti tranne l'ultimo
+        # for x in range(args.batch_size - 1):
+        #     pkt = batch[x]
+        #     next_len = len(batch[x + 1])
+        #     pkt = add_batching_header(pkt, next_len) / Raw(batch[x + 1])
+        #     batched_hashed_pkts.append(pkt)
+        pkt = add_batching_header(batch)
+        pkts.append(pkt)
+
 
 
     return batched_hashed_pkts, batched_pkts
@@ -201,19 +219,11 @@ def gen_pkts(args, set_flows):
                 pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=dport, sport=sport) / Raw(str(i + x))
                 # pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=dport, sport=sport) / Raw(str(i + x)*((x+1)*40)) #payload diversi tra primo e secondo pacchetto
 
-
-            # Evita l'operazione ridondante
-            pkt = pkt.__class__(bytes(pkt)) if proto == "UDP" else pkt
-            
+            # pkt = pkt.__class__(bytes(pkt))
             batch.append(pkt)
 
-        # Aggiunge header di batching a tutti i pacchetti tranne l'ultimo
-        for x in range(args.batch_size - 1):
-            pkt = batch[x]
-            # next_len = len(batch[x + 1])
-            this_len = len(batch[x])
-            pkt = add_batching_header(pkt, this_len) / Raw(batch[x + 1])
-            pkts.append(pkt)
+        pkt = add_batching_header(batch)
+        pkts.append(pkt)
 
 
     return pkts
@@ -246,7 +256,7 @@ if __name__ == "__main__":
     parser.add_argument("--s_subnet", help="Subnet IP sorgente", type=str, default="0.0.0.0/0")
     parser.add_argument("--d_subnet", help="Subnet IP destinazione", type=str, default="0.0.0.0/0")
     parser.add_argument("--fixed", help="Set fixed value for dmac, smac, dport, sport", type=bool, default=False)
-    parser.add_argument("--n_queues",help="Numero di queues diverse per la suddivisione per hash",type=int,default=2)
+    parser.add_argument("--n_queues",help="Numero di queues diverse per la suddivisione per hash",type=n_pkt_to_int,default=2)
     parser.add_argument("--locality_size",help="Parametro della selezione dei pacchetti vicini o del numero di pacchetti scelti per ogni queue",type=n_pkt_to_int,default=2)
     args = parser.parse_args()
 

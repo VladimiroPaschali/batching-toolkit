@@ -238,7 +238,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_queues",
         help="Numero di queues diverse per la suddivisione per hash",
-        type=int,
+        type=n_pkts_to_int,
         default=2,
     )
 
