@@ -62,8 +62,8 @@ def _parse_pmc_csv(csvpath: str, logpath :str, progam_name: str, pmciterations:i
     total_rows = df[df[7].str.contains(r'\(Total\)', na=False)].iloc[:, :7]    
     total_rows = total_rows.apply(pd.to_numeric, errors='coerce')
     total_grouped = [total_rows.iloc[i:i + pmciterations] for i in range(0, len(total_rows), pmciterations)]
-    # total_avg = [group.mean(skipna=True).round().astype(int) for group in total_grouped]
-    total_avg = [group.max(skipna=True).round().astype(int) for group in total_grouped]
+    total_avg = [group.mean(skipna=True).round().astype(int) for group in total_grouped]
+    # total_avg = [group.max(skipna=True).round().astype(int) for group in total_grouped]
     total_avg = [total_avg[0][i] for i in range(len(total_avg[0]))]
     total_avg = [progam_name, throughput, "Total"] + total_avg
     
@@ -71,8 +71,8 @@ def _parse_pmc_csv(csvpath: str, logpath :str, progam_name: str, pmciterations:i
     hit_rows = df[df[7].str.contains(r'\(Hit\)', na=False)].iloc[:, :7]
     hit_rows = hit_rows.apply(pd.to_numeric, errors='coerce')
     hit_grouped = [hit_rows.iloc[i:i + pmciterations] for i in range(0, len(hit_rows), pmciterations)]
-    # hit_avg = [group.mean(skipna=True).round().astype(int) for group in hit_grouped]
-    hit_avg = [group.max(skipna=True).round().astype(int) for group in hit_grouped]
+    hit_avg = [group.mean(skipna=True).round().astype(int) for group in hit_grouped]
+    # hit_avg = [group.max(skipna=True).round().astype(int) for group in hit_grouped]
     hit_avg = [hit_avg[0][i] for i in range(len(hit_avg[0]))]
     hit_avg = [progam_name, throughput, "Hit"] + hit_avg
 
@@ -81,8 +81,8 @@ def _parse_pmc_csv(csvpath: str, logpath :str, progam_name: str, pmciterations:i
     miss_rows = df[df[7].str.contains(r'\(Miss\)', na=False)].iloc[:, :7]
     miss_rows = miss_rows.apply(pd.to_numeric, errors='coerce')
     miss_grouped = [miss_rows.iloc[i:i + pmciterations] for i in range(0, len(miss_rows), pmciterations)]
-    # miss_avg = [group.mean(skipna=True).round().astype(int) for group in miss_grouped]
-    miss_avg = [group.max(skipna=True).round().astype(int) for group in miss_grouped]
+    miss_avg = [group.mean(skipna=True).round().astype(int) for group in miss_grouped]
+    # miss_avg = [group.max(skipna=True).round().astype(int) for group in miss_grouped]
     miss_avg = [miss_avg[0][i] for i in range(len(miss_avg[0]))]
     miss_avg = [progam_name, throughput, "Miss"] + miss_avg
 
