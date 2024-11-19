@@ -150,8 +150,8 @@ def gen_pkts_rss(args, set_flows):
         #     next_len = len(batch[x + 1])
         #     pkt = add_batching_header(pkt, next_len) / Raw(batch[x + 1])
         #     batched_pkts.append(pkt)
-    pkt = add_batching_header(batch)
-    batched_pkts.append(pkt)
+        pkt = add_batching_header(batch)
+        batched_pkts.append(pkt)
 
     
     #batch hashed pkts
@@ -168,8 +168,8 @@ def gen_pkts_rss(args, set_flows):
         #     next_len = len(batch[x + 1])
         #     pkt = add_batching_header(pkt, next_len) / Raw(batch[x + 1])
         #     batched_hashed_pkts.append(pkt)
-    pkt = add_batching_header(batch)
-    batched_hashed_pkts.append(pkt)
+        pkt = add_batching_header(batch)
+        batched_hashed_pkts.append(pkt)
 
 
 
