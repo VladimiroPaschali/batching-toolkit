@@ -34,6 +34,8 @@ def add_batching_header(batch:list):
         header = 1<<51 |1<<50 |1<<49 |1<<48 | len(batch[0]) << 32 | len(batch[1])<<16 | len(batch[2])
         custom_header = BatchingHeader(custom = header)
     else:
+        header = 0<<51 |0<<50 |0<<49 |0<<48
+        custom_header = BatchingHeader(custom = header)
         print("Batch size non valido")
 
     pkt = batch[0]
@@ -41,8 +43,8 @@ def add_batching_header(batch:list):
         pkt = pkt / batch[i]
         
     pkt = custom_header/pkt
+    # pkt = pkt.__class__(bytes(pkt))
 
-    pkt = pkt.__class__(bytes(pkt))
     return pkt
 
 def gen_payload(size):
@@ -219,7 +221,8 @@ def gen_pkts(args, set_flows):
                 pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=dport, sport=sport) / Raw(str(i + x))
                 # pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=dport, sport=sport) / Raw(str(i + x)*((x+1)*40)) #payload diversi tra primo e secondo pacchetto
 
-            # pkt = pkt.__class__(bytes(pkt))
+            #add len
+            pkt = pkt.__class__(bytes(pkt))
             batch.append(pkt)
 
         pkt = add_batching_header(batch)
