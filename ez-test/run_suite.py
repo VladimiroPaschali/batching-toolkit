@@ -110,6 +110,7 @@ def _perf_ipc(time, name) -> int:
     if match:
         return float(match.group(1))
     else:
+        print(result.stderr)
         return -1
     
 # def _perf_cache_misses(cpu, time) -> int:

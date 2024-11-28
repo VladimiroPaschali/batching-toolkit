@@ -1,9 +1,9 @@
 {
-    "ifname": "enp202s0f1np1",
+    "ifname": "enp52s0f1np1",
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir":"/home/andrea/mellanox_batching/utils",
     "time": 10,
-    "repetitions":2,
+    "repetitions":1,
     "progs": [
         {
             "name": "bdrop",

@@ -3,11 +3,23 @@
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir":"/home/andrea/mellanox_batching/utils",
     "time": 10,
-    "repetitions":3,
+    "repetitions":1,
     "progs": [
         {
+            "name": "bcms",
+            "path": "cms/tbcms"
+        },
+        {
             "name": "bconntrack",
-            "path": "conntrack/bconntrack"
+            "path": "conntrack/tbconntrack"
+        },
+        {
+            "name": "brouter",
+            "path": "router/tbrouter"
+        },
+        {
+            "name": "bnat",
+            "path": "nat/bnat"
         }
     ],
     "batched": true,
@@ -17,5 +29,4 @@
     "perfIPC": true,
     "perfCacheMisses":true,
     "perfIPP": true
-
 }

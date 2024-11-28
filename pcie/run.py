@@ -143,8 +143,8 @@ def main():
     if os.geteuid() != 0:
         exit("You need to have root privileges to run this script.\nPlease try again, this time using 'sudo'. Exiting.")
     
-    configpath = "config.json"
-    # configpath = "configBatched.json"
+    # configpath = "config.json"
+    configpath = "configBatched.json"
 
     config = _load_config(configpath)
     logpath = "log.txt"
