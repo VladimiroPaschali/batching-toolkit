@@ -12,6 +12,7 @@
     ],
     "bpf-stats": false,
     "throughput": true,
+    "bandwidth": true,
     "cpu": 0,
     "perfIPC": true,
     "perfCacheMisses":true,

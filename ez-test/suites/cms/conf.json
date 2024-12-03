@@ -10,9 +10,27 @@
             "path": "cms/cms"
         }
     ],
+    "before_start": [
+        {
+            "name": "bpf_stats",
+            "cmd": "sysctl kernel.bpf_stats_enabled",
+            "expected": "0$"
+        },
+        {
+            "name": "batched",
+            "cmd": "/home/andrea/mellanox_batching/utils/ioctl 6",
+            "expected": "0"
+        },
+        {
+            "name": "CPU frequency",
+            "cmd": "cpupower -c 0 frequency-info |sed -n 's/.*current CPU frequency: \\([0-9.]\\+ [MG]Hz\\).*/\\1/p'",
+            "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$" 
+        }
+    ],
     "batched": false,
     "bpf-stats": false,
     "throughput": true,
+    "bandwidth": true,
     "cpu": 0,
     "perfIPC": true,
     "perfCacheMisses":true,
