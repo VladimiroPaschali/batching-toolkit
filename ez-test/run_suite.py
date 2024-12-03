@@ -18,8 +18,9 @@ from time import sleep
 #         return 1
 #     return config
 
-def _load_program(program_path: str, ifname: str, logpath:str) -> sp.Popen:
-    command = f"sudo {program_path} {ifname}"
+def _load_program(program_path: str, ifname: str, logpath:str, vargs) -> sp.Popen:
+    command = f"sudo {program_path} {ifname} {vargs}"
+    print(command)
     #shell false permette di fare process.terminate()
     #pipare o out o err se no si rompe la shell
     process = sp.Popen(shlex.split(command),stdout=sp.PIPE,text=True)
@@ -52,12 +53,16 @@ def _init_csv(csv_path: str, suite_cfg:str) -> int:
     fields = ["program"]
     if suite_cfg["throughput"]:
         fields.append("throughput")
+    if suite_cfg["bandwidth"]:
+        fields.append("bandwidth")
     if suite_cfg["perfIPC"]:
         fields.append("IPC")
     if suite_cfg["perfCacheMisses"]:
         fields.append("CacheMisses")
     if suite_cfg["perfIPP"]:
         fields.append("IPP")
+    if suite_cfg["perfBranchMisses"]:
+        fields.append("perfBranchMisses")
     with open(csv_path, "w",newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(fields)
@@ -77,6 +82,17 @@ def _compute_throughput(ioctlpath:str, time:int) -> int:
         return -1
     
     return int(result.stdout)
+
+def _compute_bandwidth(ioctlpath:str, time:int) -> int:
+    command = f"sudo {ioctlpath} 4 {time}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+    except sp.CalledProcessError as e:
+        print(f"Error ./ioctl 4 {time} command")
+        return -1
+    
+    return (int(result.stdout)*8)/(2**20)
 
 def _bpftool_id(name):
     command = f"sudo bpftool prog show name {name}"
@@ -113,6 +129,24 @@ def _perf_ipc(time, name) -> int:
         print(result.stderr)
         return -1
     
+def _perf_branch_misses(time, name) -> int:
+
+    # command = f"sudo perf stat -e cycles:k,instructions:k -C {cpu} --timeout {time*1000}"
+    bpftool_id = _bpftool_id(name)
+    command = f"sudo perf_bpf stat -b {bpftool_id} -e branch-misses --timeout {time*1000}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+        # print(result.stderr)
+    except sp.CalledProcessError as e:
+        print("Error perf IPC command")
+        return -1
+    
+    match = re.search(r'([\d.]+)\s+branch-misses', result.stderr)
+    if match:
+        return float(match.group(1))
+    else:
+        print(result.stderr)
+        return -1
 # def _perf_cache_misses(cpu, time) -> int:
 def _perf_cache_misses(time, name) -> int:
 
@@ -166,8 +200,7 @@ def _perf_ipp(ioctlpath,cpu, time) -> int:
     instructions = int(match.group(1).replace(",","")) if match else -1
     # print(f"Instructions: {instructions}")
     return instructions/pkts
-    
-
+        
 
 def run_suite(suite_cfg:json, name:str) -> int:
 
@@ -193,18 +226,22 @@ def run_suite(suite_cfg:json, name:str) -> int:
     for program in suite_cfg["progs"]:
         program_path=os.path.join(absolute_path, program["path"])
         program_name = program["name"]
-
+        vargs = program.get("args", "")
+        if vargs:
+            vargs=vargs.replace("@", absolute_path)
 
         avg_throughput=[]
         avg_ipc=[]
         avg_ipp=[]
         avg_cache_misses=[]
+        avg_bandwidth=[]
+        avg_branch_misses=[]
 
         csvdata = [program_name]
 
         for repetition in range(repetitions):
 
-            process = _load_program(program_path, ifname, logpath)
+            process = _load_program(program_path, ifname, logpath, vargs)
 
 
             _append_to_log(logpath, f"Repetition: {repetition+1}\n")
@@ -216,6 +253,11 @@ def run_suite(suite_cfg:json, name:str) -> int:
                 _append_to_log(logpath, f"Throughput: {throughput} packets/s\n")
                 print(f"Throughput: {throughput} packets/s")
 
+            if suite_cfg["bandwidth"]:
+                bandwidth = _compute_bandwidth(ioctlpath, time) // time 
+                avg_bandwidth.append(bandwidth)
+                _append_to_log(logpath, f"Bandwidth: {bandwidth} Mbits/s\n")
+                print(f"Bandwidth: {bandwidth} Mbits/s")
 
             if suite_cfg["perfIPC"]:
                 # ipc = _perf_ipc(cpu,time)
@@ -237,6 +279,12 @@ def run_suite(suite_cfg:json, name:str) -> int:
                 avg_ipp.append(ipp)
                 _append_to_log(logpath, f"IPP: {ipp}\n")
                 print(f"IPP: {ipp}")
+            
+            if suite_cfg["perfBranchMisses"]:
+                branch_misses = _perf_branch_misses(time, program_name)
+                avg_branch_misses.append(branch_misses)
+                _append_to_log(logpath, f"Branch misses: {branch_misses}\n")
+                print(f"Branch misses: {branch_misses}")
 
             _term_program(process, logpath)
 
@@ -245,6 +293,12 @@ def run_suite(suite_cfg:json, name:str) -> int:
             csvdata.append(avg_throughput)
             _append_to_log(logpath, f"Average throughput: {avg_throughput} packets/s\n")
             print(f"Average throughput: {avg_throughput} packets/s")
+
+        if suite_cfg["bandwidth"]:
+            avg_bandwidth = sum(avg_bandwidth) / repetitions
+            csvdata.append(avg_bandwidth)
+            _append_to_log(logpath, f"Average bandwidth: {avg_bandwidth} Mbits/s\n")
+            print(f"Average bandwidth: {avg_bandwidth} Mbits/s")
             
 
         if suite_cfg["perfIPC"]:
@@ -264,6 +318,12 @@ def run_suite(suite_cfg:json, name:str) -> int:
             csvdata.append(avg_ipp)
             _append_to_log(logpath, f"Average IPP: {avg_ipp}\n")
             print(f"Average IPP: {avg_ipp}")
+
+        if suite_cfg["perfBranchMisses"]:
+            avg_branch_misses = sum(avg_branch_misses) / repetitions
+            csvdata.append(avg_branch_misses)
+            _append_to_log(logpath, f"Average Branch misses: {avg_branch_misses}\n")
+            print(f"Average Branch misses: {avg_branch_misses}")
 
         _append_to_csv(csvpath, csvdata)
 

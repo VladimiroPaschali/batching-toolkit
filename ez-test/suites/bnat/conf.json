@@ -6,16 +6,8 @@
     "repetitions": 1,
     "progs": [
         {
-            "name": "bdrop",
-            "path": "drop/bdrop"
-        },
-        {
-            "name": "bpass",
-            "path": "pass/bpass"
-        },
-        {
-            "name": "btx",
-            "path": "tx/btx"
+            "name": "bnat",
+            "path": "nat/bnat"
         }
     ],
     "before_start": [
@@ -38,9 +30,10 @@
     "batched": true,
     "bpf-stats": false,
     "throughput": true,
-    "bandwidth": true,
+    "bandwidth": false,
     "cpu": 0,
     "perfIPC": true,
     "perfCacheMisses": true,
-    "perfIPP": true
+    "perfIPP": true,
+    "perfBranchMisses": false
 }
