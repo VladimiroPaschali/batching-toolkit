@@ -1,4 +1,4 @@
-
+*.txt
 *.pcap
 __pycache__
 log.txt

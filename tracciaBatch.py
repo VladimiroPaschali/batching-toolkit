@@ -97,9 +97,9 @@ def gen_pkts_rss(args, set_flows):
     
     list_flows = list(set_flows)
     distr = uniform_dist(args)
-    normal_payload_size = [
-        int(random.normalvariate(args.payload_size, 2)) for _ in range(args.n_pkts)
-    ]
+    #normal_payload_size = [
+    #    int(random.normalvariate(args.payload_size, 2)) for _ in range(args.n_pkts)
+    #]
     qpkts = [[] for _ in range(args.n_queues)]
     pkts = []
     # Inizia la barra di progresso
@@ -199,8 +199,8 @@ def gen_pkts(args, set_flows):
 
 
     # Precalcola anche la dimensione del payload con distribuzione gaussiana
-    normal_payload_size = [int(random.normalvariate(args.payload_size, 2)) for _ in range(args.n_pkts)]
-
+    #normal_payload_size = [int(random.normalvariate(args.payload_size, 2)) for _ in range(args.n_pkts)]
+    total_batch_size = 0
     # Ciclo principale per creare pacchetti in batch
     for i in tqdm(range(0, len(distr), args.batch_size), desc="Generazione pacchetti", unit="pkt"):
         batch = []
@@ -216,14 +216,30 @@ def gen_pkts(args, set_flows):
  
          # Crea pacchetto TCP o UDP
             if proto == "TCP":
-                pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / TCP(dport=dport, sport=sport) / Raw(str(i + x))
+                pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / TCP(dport=dport, sport=sport) 
             else:
-                pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=dport, sport=sport) / Raw(str(i + x))
+                pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=dport, sport=sport) 
                 # pkt = Ether(src=smac, dst=dmac) / IP(src=src, dst=dst) / UDP(dport=dport, sport=sport) / Raw(str(i + x)*((x+1)*40)) #payload diversi tra primo e secondo pacchetto
+            
+            #add payload
+            if args.payload_size: # add a payload of size payload_size 
+                pkt = pkt / Raw(str(i+x)*args.payload_size)
+            elif args.pkt_size > len(pkt):
+                pkt = pkt / Raw(str(i+x)*(args.pkt_size - len(pkt)))
+            elif args.total_batch_size > len(pkt): # add much payload to the packet to fit batch_size packet in the batch
+                payload_size = ((args.total_batch_size - 8) // args.batch_size) - len(pkt)
+                if payload_size < 0:
+                    payload_size = 1;
+                pkt = pkt / Raw(str(i+x)*payload_size)
+            else:
+                pkt = pkt / Raw(str(i+x))
+
 
             #add len
             pkt = pkt.__class__(bytes(pkt))
             batch.append(pkt)
+            total_batch_size += len(pkt)
+            
 
         pkt = add_batching_header(batch)
         pkts.append(pkt)
@@ -255,7 +271,10 @@ if __name__ == "__main__":
     parser.add_argument("--distribution", help="Tipo di distribuzione [ZIPF | UNIFORM | LOCALITY | RSS]", type=str, default="ZIPF", choices=["ZIPF", "UNIFORM", "LOCALITY", "RSS"])
     parser.add_argument("--output", help="Nome del file di output .pcap", type=str, default="batch")
     parser.add_argument("--batch_size", help="Dimensione del batch", type=int, default=2)
-    parser.add_argument("--payload_size", help="Dimensione in valore medio del payload, è calcolata usando una distribuzione gaussiana centrata al valore passato con devstd=2",  type=int, default=10)
+    parser.add_argument("--avg_payload_size", help="Dimensione in valore medio del payload, è calcolata usando una distribuzione gaussiana centrata al valore passato con devstd=2",  type=int, default=10)
+    parser.add_argument("--payload_size", help="Dimesione fissa del payload per ogni pacchetto", type=int, default=0)
+    parser.add_argument("--pkt_size", help="Dimensione totale del pacchetto, il valore deve essere maggiore o uguale del minimo valore, in caso contrario questo campo non verrà consdierato", type=int, default=0)
+    parser.add_argument("--total_batch_size", help="Dimensione totale del batch, il valore deve essere maggiore o uguale del minimo valore, in caso contrario questo campo non verrà consdierato", type=int, default=0)
     parser.add_argument("--s_subnet", help="Subnet IP sorgente", type=str, default="0.0.0.0/0")
     parser.add_argument("--d_subnet", help="Subnet IP destinazione", type=str, default="0.0.0.0/0")
     parser.add_argument("--fixed", help="Set fixed value for dmac, smac, dport, sport", type=bool, default=False)
