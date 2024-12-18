@@ -6,9 +6,12 @@
     "repetitions":1,
     "progs": [
         {
-            "name": "nat",
-            "path": "nat/nat",
-            "args": "@/nat/nat_tbl.txt"
+            "name": "bconntrack",
+            "path": "conntrack/bconntrack"
+        },
+        {
+            "name": "obconntrack",
+            "path": "conntrack/obconntrack"
         }
     ],
     "before_start": [
@@ -20,19 +23,15 @@
         {
             "name": "batched",
             "cmd": "/home/andrea/mellanox_batching/utils/ioctl 6",
-            "expected": "0"
+            "expected": "1"
         },
         {
             "name": "CPU frequency",
             "cmd": "cpupower -c 0 frequency-info |sed -n 's/.*current CPU frequency: \\([0-9.]\\+ [MG]Hz\\).*/\\1/p'",
-            "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$" 
-        },
-        {
-            "name": "Current pcap",
-            "cmd": "sudo -u $(logname) ssh vladimiro@optiplex \"grep -o '^[[:space:]]*[^#]-s 0:.*\\.pcap' /home/vladimiro/Pktgen-DPDK/cfg/default.cfg | tr -d '[:blank:]'\""
+            "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$"
         }
     ],
-    "batched": false,
+    "batched": true,
     "bpf-stats": false,
     "throughput": true,
     "bandwidth": false,
@@ -41,4 +40,5 @@
     "perfCacheMisses":true,
     "perfIPP": true,
     "perfBranchMisses": false
+
 }

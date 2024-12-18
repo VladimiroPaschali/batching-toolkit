@@ -1,13 +1,18 @@
 {
     "ifname": "enp52s0f1np1",
     "exp-dir": "/home/vladimiro/bxdp",
-    "ioctl-dir":"/home/andrea/mellanox_batching/utils",
+    "ioctl-dir": "/home/andrea/mellanox_batching/utils",
     "time": 10,
-    "repetitions":1,
+    "repetitions": 1,
     "progs": [
         {
-            "name": "nat",
-            "path": "nat/nat",
+            "name": "bnat",
+            "path": "nat/bnat",
+            "args": "@/nat/nat_tbl.txt"
+        },
+        {
+            "name": "obnat",
+            "path": "nat/obnat",
             "args": "@/nat/nat_tbl.txt"
         }
     ],
@@ -20,25 +25,25 @@
         {
             "name": "batched",
             "cmd": "/home/andrea/mellanox_batching/utils/ioctl 6",
-            "expected": "0"
+            "expected": "1"
         },
         {
             "name": "CPU frequency",
             "cmd": "cpupower -c 0 frequency-info |sed -n 's/.*current CPU frequency: \\([0-9.]\\+ [MG]Hz\\).*/\\1/p'",
-            "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$" 
+            "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$"
         },
         {
             "name": "Current pcap",
             "cmd": "sudo -u $(logname) ssh vladimiro@optiplex \"grep -o '^[[:space:]]*[^#]-s 0:.*\\.pcap' /home/vladimiro/Pktgen-DPDK/cfg/default.cfg | tr -d '[:blank:]'\""
         }
     ],
-    "batched": false,
+    "batched": true,
     "bpf-stats": false,
     "throughput": true,
     "bandwidth": false,
     "cpu": 0,
     "perfIPC": true,
-    "perfCacheMisses":true,
+    "perfCacheMisses": true,
     "perfIPP": true,
     "perfBranchMisses": false
 }

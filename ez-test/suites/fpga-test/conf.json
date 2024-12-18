@@ -1,0 +1,23 @@
+{
+    "ifname": "ens8191",
+    "exp-dir": "/home/vladimiro/bxdp",
+    "ioctl-dir":"/home/andrea/onic-driver/utility",
+    "time": 10,
+    "repetitions":1,
+    "progs": [
+        {
+            "name": "drop",
+            "path": "drop/drop"
+        }
+    ],
+    "fpga": true,
+    "batched": false,
+    "bpf-stats": false,
+    "throughput": true,
+    "bandwidth": false,
+    "cpu": 0,
+    "perfIPC": true,
+    "perfCacheMisses":true,
+    "perfIPP": true,
+    "perfBranchMisses":false
+}

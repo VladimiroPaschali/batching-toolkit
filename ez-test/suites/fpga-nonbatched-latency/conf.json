@@ -1,14 +1,30 @@
 {
-    "ifname": "enp52s0f1np1",
+    "ifname": "ens8191",
     "exp-dir": "/home/vladimiro/bxdp",
-    "ioctl-dir":"/home/andrea/mellanox_batching/utils",
+    "ioctl-dir":"/home/andrea/onic-driver/utility",
     "time": 10,
     "repetitions":1,
     "progs": [
         {
-            "name": "nat",
-            "path": "nat/nat",
+            "name": "tcms",
+            "path": "cms/tcms"
+        },
+        {
+            "name": "tconntrack",
+            "path": "conntrack/tconntrack"
+        },
+        {
+            "name": "trouter",
+            "path": "router/trouter"
+        },
+        {
+            "name": "tnat",
+            "path": "nat/tnat",
             "args": "@/nat/nat_tbl.txt"
+        },
+        {
+            "name": "tx",
+            "path": "tx/tx"
         }
     ],
     "before_start": [
@@ -18,27 +34,19 @@
             "expected": "0$"
         },
         {
-            "name": "batched",
-            "cmd": "/home/andrea/mellanox_batching/utils/ioctl 6",
-            "expected": "0"
-        },
-        {
             "name": "CPU frequency",
             "cmd": "cpupower -c 0 frequency-info |sed -n 's/.*current CPU frequency: \\([0-9.]\\+ [MG]Hz\\).*/\\1/p'",
             "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$" 
-        },
-        {
-            "name": "Current pcap",
-            "cmd": "sudo -u $(logname) ssh vladimiro@optiplex \"grep -o '^[[:space:]]*[^#]-s 0:.*\\.pcap' /home/vladimiro/Pktgen-DPDK/cfg/default.cfg | tr -d '[:blank:]'\""
         }
     ],
+    "fpga": true,
     "batched": false,
     "bpf-stats": false,
     "throughput": true,
     "bandwidth": false,
     "cpu": 0,
-    "perfIPC": true,
-    "perfCacheMisses":true,
-    "perfIPP": true,
-    "perfBranchMisses": false
+    "perfIPC": false,
+    "perfCacheMisses":false,
+    "perfIPP": false,
+    "perfBranchMisses":false
 }

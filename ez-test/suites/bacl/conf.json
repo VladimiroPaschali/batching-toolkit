@@ -1,14 +1,19 @@
 {
     "ifname": "enp52s0f1np1",
     "exp-dir": "/home/vladimiro/bxdp",
-    "ioctl-dir":"/home/andrea/mellanox_batching/utils",
+    "ioctl-dir": "/home/andrea/mellanox_batching/utils",
     "time": 10,
-    "repetitions":1,
+    "repetitions": 1,
     "progs": [
         {
-            "name": "nat",
-            "path": "nat/nat",
-            "args": "@/nat/nat_tbl.txt"
+            "name": "bacl",
+            "path": "acl/bacl",
+            "args": "@/acl/1k_rules.txt"
+        },
+        {
+            "name": "abacl",
+            "path": "acl/abacl",
+            "args": "@/acl/1k_rules.txt"
         }
     ],
     "before_start": [
@@ -20,7 +25,7 @@
         {
             "name": "batched",
             "cmd": "/home/andrea/mellanox_batching/utils/ioctl 6",
-            "expected": "0"
+            "expected": "1"
         },
         {
             "name": "CPU frequency",
@@ -32,13 +37,13 @@
             "cmd": "sudo -u $(logname) ssh vladimiro@optiplex \"grep -o '^[[:space:]]*[^#]-s 0:.*\\.pcap' /home/vladimiro/Pktgen-DPDK/cfg/default.cfg | tr -d '[:blank:]'\""
         }
     ],
-    "batched": false,
+    "batched": true,
     "bpf-stats": false,
     "throughput": true,
     "bandwidth": false,
     "cpu": 0,
     "perfIPC": true,
-    "perfCacheMisses":true,
+    "perfCacheMisses": true,
     "perfIPP": true,
     "perfBranchMisses": false
 }

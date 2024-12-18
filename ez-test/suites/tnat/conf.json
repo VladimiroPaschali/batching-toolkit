@@ -6,8 +6,8 @@
     "repetitions":1,
     "progs": [
         {
-            "name": "nat",
-            "path": "nat/nat",
+            "name": "tnat",
+            "path": "nat/tnat",
             "args": "@/nat/nat_tbl.txt"
         }
     ],

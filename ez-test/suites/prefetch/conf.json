@@ -3,12 +3,44 @@
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir":"/home/andrea/mellanox_batching/utils",
     "time": 10,
-    "repetitions":1,
+    "repetitions":3,
     "progs": [
+        {
+            "name": "drop",
+            "path": "drop/drop"
+        },
+        {
+            "name": "pass",
+            "path": "pass/pass"
+        },
+        {
+            "name": "cms",
+            "path": "cms/cms"
+        },
+        {
+            "name": "conntrack",
+            "path": "conntrack/conntrack"
+        },
+        {
+            "name": "router",
+            "path": "router/router"
+        },
         {
             "name": "nat",
             "path": "nat/nat",
             "args": "@/nat/nat_tbl.txt"
+        },
+        {
+            "name": "swaptx",
+            "path": "tx/swaptx"
+        },
+        {
+            "name": "swappass",
+            "path": "tx/swappass"
+        },
+        {
+            "name": "tx",
+            "path": "tx/tx"
         }
     ],
     "before_start": [
@@ -26,10 +58,6 @@
             "name": "CPU frequency",
             "cmd": "cpupower -c 0 frequency-info |sed -n 's/.*current CPU frequency: \\([0-9.]\\+ [MG]Hz\\).*/\\1/p'",
             "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$" 
-        },
-        {
-            "name": "Current pcap",
-            "cmd": "sudo -u $(logname) ssh vladimiro@optiplex \"grep -o '^[[:space:]]*[^#]-s 0:.*\\.pcap' /home/vladimiro/Pktgen-DPDK/cfg/default.cfg | tr -d '[:blank:]'\""
         }
     ],
     "batched": false,
@@ -37,8 +65,8 @@
     "throughput": true,
     "bandwidth": false,
     "cpu": 0,
-    "perfIPC": true,
+    "perfIPC": false,
     "perfCacheMisses":true,
-    "perfIPP": true,
-    "perfBranchMisses": false
+    "perfIPP": false,
+    "perfBranchMisses":false
 }

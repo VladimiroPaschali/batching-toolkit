@@ -1,14 +1,14 @@
 {
     "ifname": "enp52s0f1np1",
     "exp-dir": "/home/vladimiro/bxdp",
-    "ioctl-dir":"/home/andrea/mellanox_batching/utils",
+    "ioctl-dir": "/home/andrea/mellanox_batching/utils",
     "time": 10,
-    "repetitions":1,
+    "repetitions": 1,
     "progs": [
         {
-            "name": "nat",
-            "path": "nat/nat",
-            "args": "@/nat/nat_tbl.txt"
+            "name": "acl",
+            "path": "acl/acl",
+            "args": "@/acl/10k_rules.txt"
         }
     ],
     "before_start": [
@@ -38,7 +38,7 @@
     "bandwidth": false,
     "cpu": 0,
     "perfIPC": true,
-    "perfCacheMisses":true,
+    "perfCacheMisses": true,
     "perfIPP": true,
     "perfBranchMisses": false
 }

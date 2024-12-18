@@ -1,14 +1,38 @@
 {
-    "ifname": "enp52s0f1np1",
+    "ifname": "ens8191",
     "exp-dir": "/home/vladimiro/bxdp",
-    "ioctl-dir":"/home/andrea/mellanox_batching/utils",
+    "ioctl-dir": "/home/andrea/onic-driver/utility",
     "time": 10,
-    "repetitions":1,
+    "repetitions": 1,
     "progs": [
         {
-            "name": "nat",
-            "path": "nat/nat",
+            "name": "bdrop",
+            "path": "drop/bdrop"
+        },
+        {
+            "name": "bpass",
+            "path": "pass/bpass"
+        },
+        {
+            "name": "bcms",
+            "path": "cms/bcms"
+        },
+        {
+            "name": "bconntrack",
+            "path": "conntrack/bconntrack"
+        },
+        {
+            "name": "brouter",
+            "path": "router/brouter"
+        },
+        {
+            "name": "bnat",
+            "path": "nat/bnat",
             "args": "@/nat/nat_tbl.txt"
+        },
+        {
+            "name": "btx",
+            "path": "tx/btx"
         }
     ],
     "before_start": [
@@ -16,11 +40,6 @@
             "name": "bpf_stats",
             "cmd": "sysctl kernel.bpf_stats_enabled",
             "expected": "0$"
-        },
-        {
-            "name": "batched",
-            "cmd": "/home/andrea/mellanox_batching/utils/ioctl 6",
-            "expected": "0"
         },
         {
             "name": "CPU frequency",
@@ -32,13 +51,14 @@
             "cmd": "sudo -u $(logname) ssh vladimiro@optiplex \"grep -o '^[[:space:]]*[^#]-s 0:.*\\.pcap' /home/vladimiro/Pktgen-DPDK/cfg/default.cfg | tr -d '[:blank:]'\""
         }
     ],
-    "batched": false,
+    "fpga": true,
+    "batched": true,
     "bpf-stats": false,
     "throughput": true,
     "bandwidth": false,
     "cpu": 0,
     "perfIPC": true,
-    "perfCacheMisses":true,
+    "perfCacheMisses": true,
     "perfIPP": true,
     "perfBranchMisses": false
 }
