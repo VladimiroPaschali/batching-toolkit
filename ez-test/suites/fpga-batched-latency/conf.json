@@ -1,0 +1,56 @@
+{
+    "ifname": "ens8191",
+    "exp-dir": "/home/vladimiro/bxdp",
+    "ioctl-dir": "/home/andrea/onic-driver/utility",
+    "time": 20,
+    "repetitions": 1,
+    "progs": [
+        {
+            "name": "tbcms",
+            "path": "cms/tbcms"
+        },
+        {
+            "name": "tbconntrack",
+            "path": "conntrack/tbconntrack"
+        },
+        {
+            "name": "tbrouter",
+            "path": "router/tbrouter"
+        },
+        {
+            "name": "tbnat",
+            "path": "nat/tbnat",
+            "args": "@/nat/nat_tbl.txt"
+        },
+        {
+            "name": "btx",
+            "path": "tx/btx"
+        }
+    ],
+    "before_start": [
+        {
+            "name": "bpf_stats",
+            "cmd": "sysctl kernel.bpf_stats_enabled",
+            "expected": "0$"
+        },
+        {
+            "name": "CPU frequency",
+            "cmd": "cpupower -c 0 frequency-info |sed -n 's/.*current CPU frequency: \\([0-9.]\\+ [MG]Hz\\).*/\\1/p'",
+            "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$" 
+        },
+        {
+            "name": "Current pcap",
+            "cmd": "sudo -u $(logname) ssh vladimiro@optiplex \"grep -o '^[[:space:]]*[^#]-s 0:.*\\.pcap' /home/vladimiro/Pktgen-DPDK/cfg/default.cfg | tr -d '[:blank:]'\""
+        }
+    ],
+    "fpga": true,
+    "batched": true,
+    "bpf-stats": false,
+    "throughput": true,
+    "bandwidth": false,
+    "cpu": 0,
+    "perfIPC": false,
+    "perfCacheMisses": false,
+    "perfIPP": false,
+    "perfBranchMisses": false
+}

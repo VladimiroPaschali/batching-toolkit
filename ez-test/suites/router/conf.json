@@ -1,9 +1,9 @@
 {
-    "ifname": "enp202s0f1np1",
+    "ifname": "enp52s0f1np1",
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir":"/home/andrea/mellanox_batching/utils",
     "time": 10,
-    "repetitions":3,
+    "repetitions":1,
     "progs": [
         {
             "name": "router",
@@ -13,8 +13,11 @@
     "batched": false,
     "bpf-stats": false,
     "throughput": true,
+    "bandwidth": false,
     "cpu": 0,
     "perfIPC": true,
     "perfCacheMisses":true,
-    "perfIPP": true
+    "perfIPP": true,
+    "perfBranchMisses": false
+
 }

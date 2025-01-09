@@ -6,7 +6,7 @@ import shlex
 import signal
 import subprocess as sp
 from time import sleep
-
+from hooks import before_exp, after_exp
 
 # SUITE_PATH = "suites"
 # def _load_config(suite_path: str) -> dict:
@@ -18,8 +18,9 @@ from time import sleep
 #         return 1
 #     return config
 
-def _load_program(program_path: str, ifname: str, logpath:str) -> sp.Popen:
-    command = f"sudo {program_path} {ifname}"
+def _load_program(program_path: str, ifname: str, logpath:str, vargs) -> sp.Popen:
+    command = f"sudo {program_path} {ifname} {vargs}"
+    print(command)
     #shell false permette di fare process.terminate()
     #pipare o out o err se no si rompe la shell
     process = sp.Popen(shlex.split(command),stdout=sp.PIPE,text=True)
@@ -52,12 +53,16 @@ def _init_csv(csv_path: str, suite_cfg:str) -> int:
     fields = ["program"]
     if suite_cfg["throughput"]:
         fields.append("throughput")
+    if suite_cfg["bandwidth"]:
+        fields.append("bandwidth")
     if suite_cfg["perfIPC"]:
         fields.append("IPC")
     if suite_cfg["perfCacheMisses"]:
         fields.append("CacheMisses")
     if suite_cfg["perfIPP"]:
         fields.append("IPP")
+    if suite_cfg["perfBranchMisses"]:
+        fields.append("perfBranchMisses")
     with open(csv_path, "w",newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(fields)
@@ -67,8 +72,10 @@ def _append_to_csv(csv_path: str, data: list) -> int:
         writer = csv.writer(csvfile)
         writer.writerow(data)
 
-def _compute_throughput(ioctlpath:str, time:int) -> int:
-    command = f"sudo {ioctlpath} 3 {time}"
+def _compute_throughput(ioctlpath:str, time:int,fpga) -> int:
+    #se fpga è true c = "" altrimenti c = ""
+    c = "-c" if fpga else ""
+    command = f"sudo {ioctlpath} {c} 3 {time}"
     try:
         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
 
@@ -77,6 +84,17 @@ def _compute_throughput(ioctlpath:str, time:int) -> int:
         return -1
     
     return int(result.stdout)
+
+def _compute_bandwidth(ioctlpath:str, time:int) -> int:
+    command = f"sudo {ioctlpath} 4 {time}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+    except sp.CalledProcessError as e:
+        print(f"Error ./ioctl 4 {time} command")
+        return -1
+    
+    return (int(result.stdout)*8)/(2**20)
 
 def _bpftool_id(name):
     command = f"sudo bpftool prog show name {name}"
@@ -110,6 +128,26 @@ def _perf_ipc(time, name) -> int:
     if match:
         return float(match.group(1))
     else:
+        print(result.stderr)
+        return -1
+    
+def _perf_branch_misses(time, name) -> int:
+
+    # command = f"sudo perf stat -e cycles:k,instructions:k -C {cpu} --timeout {time*1000}"
+    bpftool_id = _bpftool_id(name)
+    command = f"sudo perf_bpf stat -b {bpftool_id} -e branch-misses --timeout {time*1000}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+        # print(result.stderr)
+    except sp.CalledProcessError as e:
+        print("Error perf IPC command")
+        return -1
+    
+    match = re.search(r'([\d.]+)\s+branch-misses', result.stderr)
+    if match:
+        return float(match.group(1))
+    else:
+        print(result.stderr)
         return -1
     
 # def _perf_cache_misses(cpu, time) -> int:
@@ -148,9 +186,33 @@ def _batched(ioctlpath ,batch) -> int:
     
     return 0
 
-def _perf_ipp(ioctlpath,cpu, time) -> int:
+def _batched_fpga(ioctlpath ,batch) -> int:
+    if batch:
+        command = f"sudo {ioctlpath} -c 1"
+        try:
+            print(command)
+            result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
 
-    pkts = _compute_throughput(ioctlpath, time)
+        except sp.CalledProcessError as e:
+            print(f"Error {command}")
+            return -1
+        
+        command = f"sudo {ioctlpath} -c 4"
+        
+    else:
+        command = f"sudo {ioctlpath} -c 0"
+    try:
+        print(command)
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+    except sp.CalledProcessError as e:
+        print(f"Error {command}")
+        return -1
+
+
+def _perf_ipp(ioctlpath,cpu, time, fpga) -> int:
+
+    pkts = _compute_throughput(ioctlpath, time, fpga)
 
     command = f"sudo perf stat -e instructions:k -C {cpu} --timeout {time*1000}"
     try:
@@ -165,8 +227,7 @@ def _perf_ipp(ioctlpath,cpu, time) -> int:
     instructions = int(match.group(1).replace(",","")) if match else -1
     # print(f"Instructions: {instructions}")
     return instructions/pkts
-    
-
+        
 
 def run_suite(suite_cfg:json, name:str) -> int:
 
@@ -179,6 +240,9 @@ def run_suite(suite_cfg:json, name:str) -> int:
     time = suite_cfg["time"]
     cpu = suite_cfg["cpu"]
     repetitions = suite_cfg["repetitions"]
+
+    fpga = suite_cfg.get("fpga", False)
+    batched = suite_cfg.get("batched", False)
     
     #clear csv and sets up fiels
     _init_csv(csvpath, suite_cfg)
@@ -186,35 +250,50 @@ def run_suite(suite_cfg:json, name:str) -> int:
     _clear_file(logpath)
 
     #sets ioctl if batched mode else resets
-    _batched(ioctlpath,suite_cfg["batched"])
+    if fpga:
+        # _batched_fpga(ioctlpath,batched)
+        pass
+    else:
+        _batched(ioctlpath,batched)
 
 
     for program in suite_cfg["progs"]:
         program_path=os.path.join(absolute_path, program["path"])
         program_name = program["name"]
-
+        vargs = program.get("args", "")
+        if vargs:
+            vargs=vargs.replace("@", absolute_path)
 
         avg_throughput=[]
         avg_ipc=[]
         avg_ipp=[]
         avg_cache_misses=[]
+        avg_bandwidth=[]
+        avg_branch_misses=[]
 
         csvdata = [program_name]
+        
+        before_exp(suite_cfg)
 
         for repetition in range(repetitions):
 
-            process = _load_program(program_path, ifname, logpath)
+            process = _load_program(program_path, ifname, logpath, vargs)
 
 
             _append_to_log(logpath, f"Repetition: {repetition+1}\n")
             print(f"Repetition: {repetition+1}")
 
             if suite_cfg["throughput"]:
-                throughput = _compute_throughput(ioctlpath, time) // time 
+                throughput = _compute_throughput(ioctlpath, time, fpga) // time 
                 avg_throughput.append(throughput)
                 _append_to_log(logpath, f"Throughput: {throughput} packets/s\n")
                 print(f"Throughput: {throughput} packets/s")
 
+            if suite_cfg["bandwidth"]:
+                bandwidth = _compute_bandwidth(ioctlpath, time) // time 
+                avg_bandwidth.append(bandwidth)
+                _append_to_log(logpath, f"Bandwidth: {bandwidth} Mbits/s\n")
+                print(f"Bandwidth: {bandwidth} Mbits/s")
 
             if suite_cfg["perfIPC"]:
                 # ipc = _perf_ipc(cpu,time)
@@ -232,18 +311,31 @@ def run_suite(suite_cfg:json, name:str) -> int:
 
             if suite_cfg["perfIPP"]:
                 # ipc = _perf_ipc(cpu,time)
-                ipp = _perf_ipp(ioctlpath,cpu,time)
+                ipp = _perf_ipp(ioctlpath,cpu,time, fpga)
                 avg_ipp.append(ipp)
                 _append_to_log(logpath, f"IPP: {ipp}\n")
                 print(f"IPP: {ipp}")
+            
+            if suite_cfg["perfBranchMisses"]:
+                branch_misses = _perf_branch_misses(time, program_name)
+                avg_branch_misses.append(branch_misses)
+                _append_to_log(logpath, f"Branch misses: {branch_misses}\n")
+                print(f"Branch misses: {branch_misses}")
 
             _term_program(process, logpath)
+            after_exp(suite_cfg)
 
         if suite_cfg["throughput"]:
             avg_throughput = sum(avg_throughput) / repetitions
             csvdata.append(avg_throughput)
             _append_to_log(logpath, f"Average throughput: {avg_throughput} packets/s\n")
             print(f"Average throughput: {avg_throughput} packets/s")
+
+        if suite_cfg["bandwidth"]:
+            avg_bandwidth = sum(avg_bandwidth) / repetitions
+            csvdata.append(avg_bandwidth)
+            _append_to_log(logpath, f"Average bandwidth: {avg_bandwidth} Mbits/s\n")
+            print(f"Average bandwidth: {avg_bandwidth} Mbits/s")
             
 
         if suite_cfg["perfIPC"]:
@@ -263,6 +355,12 @@ def run_suite(suite_cfg:json, name:str) -> int:
             csvdata.append(avg_ipp)
             _append_to_log(logpath, f"Average IPP: {avg_ipp}\n")
             print(f"Average IPP: {avg_ipp}")
+
+        if suite_cfg["perfBranchMisses"]:
+            avg_branch_misses = sum(avg_branch_misses) / repetitions
+            csvdata.append(avg_branch_misses)
+            _append_to_log(logpath, f"Average Branch misses: {avg_branch_misses}\n")
+            print(f"Average Branch misses: {avg_branch_misses}")
 
         _append_to_csv(csvpath, csvdata)
 

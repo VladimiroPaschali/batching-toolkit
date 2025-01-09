@@ -1,7 +1,15 @@
 import click
 import json
 import os, glob, shutil
+import subprocess as sp
+import re
+import shlex
 from run_suite import run_suite
+from hooks import before_start, after_finish
+from colors import *
+
+
+
 SUITES_PATH = "suites"
 DEFAULT_RESULTS_PATH = "results"
 
@@ -64,6 +72,7 @@ def create(name):
 def run(name):
     if os.geteuid() != 0:
         exit("You need to have root privileges to run this script.\nPlease try again, this time using 'sudo'. Exiting.")
+    
     if not name:
         print("Please specify a suite to run")
         return 1
@@ -76,8 +85,12 @@ def run(name):
     except Exception as e:
         print(f"Error: {e}")
         return 1
+    
     print(f"Running suite {name}")
+    before_start(suite_cfg)
+    print(f"{OKCYAN} ---- Starting suite ----{RESET}")
     print(run_suite(suite_cfg, name))
+    after_finish(suite_cfg)
     return 0
 
 
