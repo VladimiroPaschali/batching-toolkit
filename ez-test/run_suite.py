@@ -5,6 +5,7 @@ import re
 import shlex
 import signal
 import subprocess as sp
+import numpy as np
 from time import sleep
 from hooks import before_exp, after_exp
 
@@ -53,6 +54,7 @@ def _init_csv(csv_path: str, suite_cfg:str) -> int:
     fields = ["program"]
     if suite_cfg["throughput"]:
         fields.append("throughput")
+        fields.append("std")
     if suite_cfg["bandwidth"]:
         fields.append("bandwidth")
     if suite_cfg["perfIPC"]:
@@ -72,9 +74,9 @@ def _append_to_csv(csv_path: str, data: list) -> int:
         writer = csv.writer(csvfile)
         writer.writerow(data)
 
-def _compute_throughput(ioctlpath:str, time:int,fpga) -> int:
+def _compute_throughput(ioctlpath:str, time:int,cfg_fpga) -> int:
     #se fpga è true c = "" altrimenti c = ""
-    c = "-c" if fpga else ""
+    c = "-c" if cfg_fpga else ""
     command = f"sudo {ioctlpath} {c} 3 {time}"
     try:
         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
@@ -172,9 +174,9 @@ def _perf_cache_misses(time, name) -> int:
 
     return cache_misses/run_count
 
-def _batched(ioctlpath ,batch) -> int:
+def _batched(ioctlpath:str ,cfg_batch:bool) -> int:
 
-    ioctlval = int(batch)
+    ioctlval = int(cfg_batch)
     command = f"sudo {ioctlpath} {ioctlval}"
     print(command)
     try:
@@ -186,8 +188,8 @@ def _batched(ioctlpath ,batch) -> int:
     
     return 0
 
-def _batched_fpga(ioctlpath ,batch) -> int:
-    if batch:
+def _batched_fpga(ioctlpath:str ,cfg_batch:bool) -> int:
+    if cfg_batch:
         command = f"sudo {ioctlpath} -c 1"
         try:
             print(command)
@@ -210,9 +212,9 @@ def _batched_fpga(ioctlpath ,batch) -> int:
         return -1
 
 
-def _perf_ipp(ioctlpath,cpu, time, fpga) -> int:
+def _perf_ipp(ioctlpath:str,cpu, time, cfg_fpga:bool) -> int:
 
-    pkts = _compute_throughput(ioctlpath, time, fpga)
+    pkts = _compute_throughput(ioctlpath, time, cfg_fpga)
 
     command = f"sudo perf stat -e instructions:k -C {cpu} --timeout {time*1000}"
     try:
@@ -241,8 +243,9 @@ def run_suite(suite_cfg:json, name:str) -> int:
     cpu = suite_cfg["cpu"]
     repetitions = suite_cfg["repetitions"]
 
-    fpga = suite_cfg.get("fpga", False)
-    batched = suite_cfg.get("batched", False)
+    cfg_fpga = suite_cfg.get("fpga", False)
+    cfg_batched = suite_cfg.get("batched", False)
+    
     
     #clear csv and sets up fiels
     _init_csv(csvpath, suite_cfg)
@@ -250,11 +253,11 @@ def run_suite(suite_cfg:json, name:str) -> int:
     _clear_file(logpath)
 
     #sets ioctl if batched mode else resets
-    if fpga:
+    if cfg_fpga:
         # _batched_fpga(ioctlpath,batched)
         pass
     else:
-        _batched(ioctlpath,batched)
+        _batched(ioctlpath,cfg_batched)
 
 
     for program in suite_cfg["progs"]:
@@ -284,7 +287,7 @@ def run_suite(suite_cfg:json, name:str) -> int:
             print(f"Repetition: {repetition+1}")
 
             if suite_cfg["throughput"]:
-                throughput = _compute_throughput(ioctlpath, time, fpga) // time 
+                throughput = _compute_throughput(ioctlpath, time, cfg_fpga) // time 
                 avg_throughput.append(throughput)
                 _append_to_log(logpath, f"Throughput: {throughput} packets/s\n")
                 print(f"Throughput: {throughput} packets/s")
@@ -311,7 +314,7 @@ def run_suite(suite_cfg:json, name:str) -> int:
 
             if suite_cfg["perfIPP"]:
                 # ipc = _perf_ipc(cpu,time)
-                ipp = _perf_ipp(ioctlpath,cpu,time, fpga)
+                ipp = _perf_ipp(ioctlpath,cpu,time, cfg_fpga)
                 avg_ipp.append(ipp)
                 _append_to_log(logpath, f"IPP: {ipp}\n")
                 print(f"IPP: {ipp}")
@@ -326,10 +329,13 @@ def run_suite(suite_cfg:json, name:str) -> int:
             after_exp(suite_cfg)
 
         if suite_cfg["throughput"]:
-            avg_throughput = sum(avg_throughput) / repetitions
+            # avg_throughput = sum(avg_throughput) / repetitions
+            avg_std = np.std(avg_throughput)
+            avg_throughput = np.mean(avg_throughput)
             csvdata.append(avg_throughput)
-            _append_to_log(logpath, f"Average throughput: {avg_throughput} packets/s\n")
-            print(f"Average throughput: {avg_throughput} packets/s")
+            csvdata.append(avg_std)
+            _append_to_log(logpath, f"Average throughput: {avg_throughput} packets/s std : {avg_std}\n")
+            print(f"Average throughput: {avg_throughput} packets/s std : {avg_std}")
 
         if suite_cfg["bandwidth"]:
             avg_bandwidth = sum(avg_bandwidth) / repetitions
