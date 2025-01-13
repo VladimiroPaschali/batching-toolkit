@@ -76,8 +76,10 @@ def _append_to_csv(csv_path: str, data: list) -> int:
 
 def _compute_throughput(ioctlpath:str, time:int,cfg_fpga) -> int:
     #se fpga è true c = "" altrimenti c = ""
-    c = "-c" if cfg_fpga else ""
-    command = f"sudo {ioctlpath} {c} 3 {time}"
+    if cfg_fpga:
+        command = f"sudo {ioctlpath} -c 3 -w {time}"
+    else:
+        command = f"sudo {ioctlpath} 3 {time}"
     try:
         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
 
