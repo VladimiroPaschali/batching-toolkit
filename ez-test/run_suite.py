@@ -51,7 +51,12 @@ def _clear_file(log_path: str) -> int:
     return 0
 
 def _init_csv(csv_path: str, suite_cfg:str) -> int:
-    fields = ["program"]
+    fields = []
+    if suite_cfg.get("multicore", 1) > 1:
+        fields.append("cores")
+    fields.append("program")
+    if "all_results.csv" in csv_path:
+        fields.append("repetition")
     if suite_cfg["throughput"]:
         fields.append("throughput")
         fields.append("std")
@@ -231,7 +236,75 @@ def _perf_ipp(ioctlpath:str,cpu, time, cfg_fpga:bool) -> int:
     instructions = int(match.group(1).replace(",","")) if match else -1
     # print(f"Instructions: {instructions}")
     return instructions/pkts
-        
+
+def _multicore(cfg_fpga:bool, cfg_batched:bool, core:int, ifname) -> int:
+    buoni = [0,4,12,20]
+    command =[]
+    indir = f"sudo ethtool --set-rxfh-indir {ifname} equal 32"
+    s1 = f"sudo ethtool --set-rxfh-indir {ifname} weight 1"
+    s2 = f"sudo ethtool --set-rxfh-indir {ifname} weight 1 0 0 0 1"
+    s4 = f"sudo ethtool --set-rxfh-indir {ifname} weight 1 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1"
+
+    # b2 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6920 m 0x001f action 0; sudo ethtool -N {ifname} flow-type ether proto 0x6900 m 0x001f action 4"
+    # b4 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6900 m 0x000f action 0; sudo ethtool -N {ifname} flow-type ether proto 0x6910 m 0x000f action 4; sudo ethtool -N {ifname} flow-type ether proto 0x6920 m 0x000f action 12; sudo ethtool -N {ifname} flow-type ether proto 0x6930 m 0x000f action 20"
+    b21 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6920 m 0x001f action 0"
+    b22 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6900 m 0x001f action 4"
+    b41 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6900 m 0x000f action 0"
+    b42 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6910 m 0x000f action 4"
+    b43 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6920 m 0x000f action 12"
+    b44 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6930 m 0x000f action 20"
+    if cfg_batched:
+        if core == 1:
+            # _multicore_reset(ifname,cfg_batched)
+            command .append("sudo ../deleteRules.sh")       
+        elif core == 2:
+            command .append("sudo ../deleteRules.sh")       
+            command.append(b21)
+            command.append(b22)
+        elif core == 4:
+            command .append("sudo ../deleteRules.sh")       
+            command.append(b41)
+            command.append(b42)
+            command.append(b43)
+            command.append(b44)
+
+    else:
+        command.append(indir)
+        if core == 1:
+            command.append(s1)
+        elif core == 2:
+            command.append(s2)
+        elif core == 4:
+            command.append(s4)
+    if cfg_fpga:
+        print("FPGA non fatto")
+        return -1
+
+    # print(command)
+    for i in range(len(command)):
+
+        try:
+            # print(command [i])
+            # print(shlex.split(command))
+            result = sp.run(shlex.split(command[i]),capture_output=True,text=True, check=True)
+            # print(result.stderr)
+
+        except sp.CalledProcessError as e:
+            print("Error multicore command")
+            print(command[i])
+            return -1
+    sleep(1)
+    return 0
+
+# def _multicore_reset(ifname:str,cfg_batched:bool) -> int:
+#     command ="sudo ../deleteRules.sh"
+#     try:
+#         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+#     except sp.CalledProcessError as e:
+#         print("Error reset multicore command")
+#         print(command)
+#         return -1
 
 def run_suite(suite_cfg:json, name:str) -> int:
 
@@ -241,16 +314,21 @@ def run_suite(suite_cfg:json, name:str) -> int:
     logpath = os.path.join(os.getcwd(),"suites", name, "log.txt")
     ioctlpath = os.path.join(os.path.abspath(suite_cfg["ioctl-dir"]), "ioctl")
     csvpath = os.path.join(os.getcwd(),"suites", name, "results.csv")
+    allcsvpath = os.path.join(os.getcwd(),"suites", name, "all_results.csv")
     time = suite_cfg["time"]
     cpu = suite_cfg["cpu"]
     repetitions = suite_cfg["repetitions"]
 
     cfg_fpga = suite_cfg.get("fpga", False)
     cfg_batched = suite_cfg.get("batched", False)
+
+    cfg_multicore = suite_cfg.get("multicore", 1)
     
     
     #clear csv and sets up fiels
     _init_csv(csvpath, suite_cfg)
+    _init_csv(allcsvpath, suite_cfg)
+
     #clear logfile
     _clear_file(logpath)
 
@@ -261,115 +339,145 @@ def run_suite(suite_cfg:json, name:str) -> int:
     else:
         _batched(ioctlpath,cfg_batched)
 
+    csvdata =[]
+    allcsvdata = []
 
-    for program in suite_cfg["progs"]:
-        program_path=os.path.join(absolute_path, program["path"])
-        program_name = program["name"]
-        vargs = program.get("args", "")
-        if vargs:
-            vargs=vargs.replace("@", absolute_path)
+    for core in range(1,cfg_multicore+1):
+        if cfg_multicore > 1:
+            if core == 3:
+                continue
+            _multicore(cfg_fpga, cfg_batched, core, ifname)
+        print(f"Core: {core}")
 
-        avg_throughput=[]
-        avg_ipc=[]
-        avg_ipp=[]
-        avg_cache_misses=[]
-        avg_bandwidth=[]
-        avg_branch_misses=[]
+        for program in suite_cfg["progs"]:
+            program_path=os.path.join(absolute_path, program["path"])
+            program_name = program["name"]
+            vargs = program.get("args", "")
+            if vargs:
+                vargs=vargs.replace("@", absolute_path)
 
-        csvdata = [program_name]
-        
-        before_exp(suite_cfg)
+            avg_throughput=[]
+            avg_ipc=[]
+            avg_ipp=[]
+            avg_cache_misses=[]
+            avg_bandwidth=[]
+            avg_branch_misses=[]
 
-        for repetition in range(repetitions):
+            # csvdata = [program_name]
+            if cfg_multicore > 1:
+                csvdata.append(core)
+            csvdata.append(program_name)
+            
+            before_exp(suite_cfg)
 
-            process = _load_program(program_path, ifname, logpath, vargs)
+            for repetition in range(repetitions):
 
+                # allcsvdata = [program_name]
+                if cfg_multicore > 1:
+                    allcsvdata.append(core)
+                allcsvdata.append(program_name)
+                allcsvdata.append(repetition+1)
 
-            _append_to_log(logpath, f"Repetition: {repetition+1}\n")
-            print(f"Repetition: {repetition+1}")
+                process = _load_program(program_path, ifname, logpath, vargs)
+
+                _append_to_log(logpath, f"Repetition: {repetition+1}\n")
+                print(f"Repetition: {repetition+1}")
+
+                if suite_cfg["throughput"]:
+                    throughput = _compute_throughput(ioctlpath, time, cfg_fpga) // time 
+                    avg_throughput.append(throughput)
+                    allcsvdata.append(throughput)
+                    allcsvdata.append(0) # used for std
+                    _append_to_log(logpath, f"Throughput: {throughput} packets/s\n")
+                    print(f"Throughput: {throughput} packets/s")
+
+                if suite_cfg["bandwidth"]:
+                    bandwidth = _compute_bandwidth(ioctlpath, time) // time 
+                    avg_bandwidth.append(bandwidth)
+                    allcsvdata.append(bandwidth)
+                    _append_to_log(logpath, f"Bandwidth: {bandwidth} Mbits/s\n")
+                    print(f"Bandwidth: {bandwidth} Mbits/s")
+
+                if suite_cfg["perfIPC"]:
+                    # ipc = _perf_ipc(cpu,time)
+                    ipc = _perf_ipc(time, program_name)
+                    avg_ipc.append(ipc)
+                    allcsvdata.append(ipc)
+                    _append_to_log(logpath, f"IPC: {ipc}\n")
+                    print(f"IPC: {ipc}")
+                
+                if suite_cfg["perfCacheMisses"]:
+                    # cache_misses = _perf_cache_misses(cpu,time)
+                    cache_misses = _perf_cache_misses(time, program_name)
+                    avg_cache_misses.append(cache_misses)
+                    allcsvdata.append(cache_misses)
+                    _append_to_log(logpath, f"Cache misses: {cache_misses}\n")
+                    print(f"Cache misses: {cache_misses}")
+
+                if suite_cfg["perfIPP"]:
+                    # ipc = _perf_ipc(cpu,time)
+                    ipp = _perf_ipp(ioctlpath,cpu,time, cfg_fpga)
+                    avg_ipp.append(ipp)
+                    allcsvdata.append(ipp)
+                    _append_to_log(logpath, f"IPP: {ipp}\n")
+                    print(f"IPP: {ipp}")
+                
+                if suite_cfg["perfBranchMisses"]:
+                    branch_misses = _perf_branch_misses(time, program_name)
+                    avg_branch_misses.append(branch_misses)
+                    allcsvdata.append(branch_misses)
+                    _append_to_log(logpath, f"Branch misses: {branch_misses}\n")
+                    print(f"Branch misses: {branch_misses}")
+
+                _term_program(process, logpath)
+                _append_to_csv(allcsvpath, allcsvdata)
+                #svuita tra ripetizioni
+                allcsvdata = []
+                after_exp(suite_cfg)
 
             if suite_cfg["throughput"]:
-                throughput = _compute_throughput(ioctlpath, time, cfg_fpga) // time 
-                avg_throughput.append(throughput)
-                _append_to_log(logpath, f"Throughput: {throughput} packets/s\n")
-                print(f"Throughput: {throughput} packets/s")
+                # avg_throughput = sum(avg_throughput) / repetitions
+                avg_std = np.std(avg_throughput)
+                avg_throughput = np.mean(avg_throughput)
+                csvdata.append(avg_throughput)
+                csvdata.append(avg_std)
+                _append_to_log(logpath, f"Average throughput: {avg_throughput} packets/s std : {avg_std}\n")
+                print(f"Average throughput: {avg_throughput} packets/s std : {avg_std}")
 
             if suite_cfg["bandwidth"]:
-                bandwidth = _compute_bandwidth(ioctlpath, time) // time 
-                avg_bandwidth.append(bandwidth)
-                _append_to_log(logpath, f"Bandwidth: {bandwidth} Mbits/s\n")
-                print(f"Bandwidth: {bandwidth} Mbits/s")
+                avg_bandwidth = sum(avg_bandwidth) / repetitions
+                csvdata.append(avg_bandwidth)
+                _append_to_log(logpath, f"Average bandwidth: {avg_bandwidth} Mbits/s\n")
+                print(f"Average bandwidth: {avg_bandwidth} Mbits/s")
+                
 
             if suite_cfg["perfIPC"]:
-                # ipc = _perf_ipc(cpu,time)
-                ipc = _perf_ipc(time, program_name)
-                avg_ipc.append(ipc)
-                _append_to_log(logpath, f"IPC: {ipc}\n")
-                print(f"IPC: {ipc}")
-            
+                avg_ipc = sum(avg_ipc) / repetitions
+                csvdata.append(avg_ipc)
+                _append_to_log(logpath, f"Average IPC: {avg_ipc}\n")
+                print(f"Average IPC: {avg_ipc}")
+
             if suite_cfg["perfCacheMisses"]:
-                # cache_misses = _perf_cache_misses(cpu,time)
-                cache_misses = _perf_cache_misses(time, program_name)
-                avg_cache_misses.append(cache_misses)
-                _append_to_log(logpath, f"Cache misses: {cache_misses}\n")
-                print(f"Cache misses: {cache_misses}")
+                avg_cache_misses = sum(avg_cache_misses) / repetitions
+                csvdata.append(avg_cache_misses)
+                _append_to_log(logpath, f"Average Cache misses: {avg_cache_misses}\n")
+                print(f"Average Cache misses: {avg_cache_misses}")
 
             if suite_cfg["perfIPP"]:
-                # ipc = _perf_ipc(cpu,time)
-                ipp = _perf_ipp(ioctlpath,cpu,time, cfg_fpga)
-                avg_ipp.append(ipp)
-                _append_to_log(logpath, f"IPP: {ipp}\n")
-                print(f"IPP: {ipp}")
-            
+                avg_ipp = sum(avg_ipp) / repetitions
+                csvdata.append(avg_ipp)
+                _append_to_log(logpath, f"Average IPP: {avg_ipp}\n")
+                print(f"Average IPP: {avg_ipp}")
+
             if suite_cfg["perfBranchMisses"]:
-                branch_misses = _perf_branch_misses(time, program_name)
-                avg_branch_misses.append(branch_misses)
-                _append_to_log(logpath, f"Branch misses: {branch_misses}\n")
-                print(f"Branch misses: {branch_misses}")
+                avg_branch_misses = sum(avg_branch_misses) / repetitions
+                csvdata.append(avg_branch_misses)
+                _append_to_log(logpath, f"Average Branch misses: {avg_branch_misses}\n")
+                print(f"Average Branch misses: {avg_branch_misses}")
 
-            _term_program(process, logpath)
-            after_exp(suite_cfg)
+            _append_to_csv(csvpath, csvdata)
+            #svuita tra ripetizioni
+            csvdata = []
 
-        if suite_cfg["throughput"]:
-            # avg_throughput = sum(avg_throughput) / repetitions
-            avg_std = np.std(avg_throughput)
-            avg_throughput = np.mean(avg_throughput)
-            csvdata.append(avg_throughput)
-            csvdata.append(avg_std)
-            _append_to_log(logpath, f"Average throughput: {avg_throughput} packets/s std : {avg_std}\n")
-            print(f"Average throughput: {avg_throughput} packets/s std : {avg_std}")
-
-        if suite_cfg["bandwidth"]:
-            avg_bandwidth = sum(avg_bandwidth) / repetitions
-            csvdata.append(avg_bandwidth)
-            _append_to_log(logpath, f"Average bandwidth: {avg_bandwidth} Mbits/s\n")
-            print(f"Average bandwidth: {avg_bandwidth} Mbits/s")
-            
-
-        if suite_cfg["perfIPC"]:
-            avg_ipc = sum(avg_ipc) / repetitions
-            csvdata.append(avg_ipc)
-            _append_to_log(logpath, f"Average IPC: {avg_ipc}\n")
-            print(f"Average IPC: {avg_ipc}")
-
-        if suite_cfg["perfCacheMisses"]:
-            avg_cache_misses = sum(avg_cache_misses) / repetitions
-            csvdata.append(avg_cache_misses)
-            _append_to_log(logpath, f"Average Cache misses: {avg_cache_misses}\n")
-            print(f"Average Cache misses: {avg_cache_misses}")
-
-        if suite_cfg["perfIPP"]:
-            avg_ipp = sum(avg_ipp) / repetitions
-            csvdata.append(avg_ipp)
-            _append_to_log(logpath, f"Average IPP: {avg_ipp}\n")
-            print(f"Average IPP: {avg_ipp}")
-
-        if suite_cfg["perfBranchMisses"]:
-            avg_branch_misses = sum(avg_branch_misses) / repetitions
-            csvdata.append(avg_branch_misses)
-            _append_to_log(logpath, f"Average Branch misses: {avg_branch_misses}\n")
-            print(f"Average Branch misses: {avg_branch_misses}")
-
-        _append_to_csv(csvpath, csvdata)
 
     return 0

@@ -1,0 +1,39 @@
+{
+    "ifname": "enp52s0f1np1",
+    "exp-dir": "/home/vladimiro/bxdp",
+    "ioctl-dir":"/home/andrea/mellanox_batching/utils",
+    "time": 10,
+    "repetitions":3,
+    "progs": [
+        {
+            "name": "bsampler",
+            "path": "sampler/bsampler"
+        }
+    ],
+    "before_start": [
+        {
+            "name": "bpf_stats",
+            "cmd": "sysctl kernel.bpf_stats_enabled",
+            "expected": "0$"
+        },
+        {
+            "name": "batched",
+            "cmd": "/home/andrea/mellanox_batching/utils/ioctl 6",
+            "expected": "1"
+        },
+        {
+            "name": "CPU frequency",
+            "cmd": "cpupower -c 0 frequency-info |sed -n 's/.*current CPU frequency: \\([0-9.]\\+ [MG]Hz\\).*/\\1/p'",
+            "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$" 
+        }
+    ],
+    "batched": true,
+    "bpf-stats": false,
+    "throughput": true,
+    "bandwidth": false,
+    "cpu": 0,
+    "perfIPC": true,
+    "perfCacheMisses":true,
+    "perfIPP": true,
+    "perfBranchMisses": false
+}
