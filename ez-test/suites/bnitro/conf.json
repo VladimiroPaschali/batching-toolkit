@@ -6,12 +6,12 @@
     "repetitions":5,
     "progs": [
         {
-            "name": "bnitro1",
-            "path": "nitroSketch/bnitro1"
+            "name": "bnitro2",
+            "path": "nitroSketch/bnitro2"
         },
         {
-            "name": "obnitro1",
-            "path": "nitroSketch/obnitro1"
+            "name": "bnitro1",
+            "path": "nitroSketch/bnitro1"
         }
     ],
     "before_start": [
@@ -37,7 +37,7 @@
     "bandwidth": false,
     "cpu": 0,
     "perfIPC": false,
-    "perfCacheMisses":true,
+    "perfCacheMisses":false,
     "perfIPP": false,
     "perfBranchMisses":false
 }

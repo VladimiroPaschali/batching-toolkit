@@ -19,5 +19,6 @@ def init_ssh(host: str, username: str, key_filename: str = None) -> pmk.SSHClien
 
 if __name__ == '__main__':
     ssh = init_ssh('optiplex', 'vladimiro')
-    ssh.exec_command('echo "Hello, world!" >> ~/hello.txt')
-    
+    _, stdout, stderr = ssh.exec_command('ls -l')
+    print(stdout.read().decode())
+    ssh.close()

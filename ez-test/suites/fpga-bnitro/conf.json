@@ -6,47 +6,8 @@
     "repetitions": 5,
     "progs": [
         {
-            "name": "bdrop",
-            "path": "drop/bdrop"
-        },
-        {
-            "name": "bpass",
-            "path": "pass/bpass"
-        },
-        {
-            "name": "bcms",
-            "path": "cms/bcms"
-        },
-        {
             "name": "bnitro2",
             "path": "nitroSketch/bnitro2"
-        },
-        {
-            "name": "bnitro1",
-            "path": "nitroSketch/bnitro1"
-        },
-        {
-            "name": "bconntrack",
-            "path": "conntrack/bconntrack"
-        },
-        {
-            "name": "bloadbalancer",
-            "path": "loadbalancer/bloadbalancer",
-            "args": "@/loadbalancer/512dest.csv"
-
-        },
-        {
-            "name": "brouter",
-            "path": "router/brouter"
-        },
-        {
-            "name": "bnat",
-            "path": "nat/bnat",
-            "args": "@/nat/nat_tbl.txt"
-        },
-        {
-            "name": "btx",
-            "path": "tx/btx"
         }
     ],
     "before_start": [

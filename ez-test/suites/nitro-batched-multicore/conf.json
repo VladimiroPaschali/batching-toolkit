@@ -1,52 +1,18 @@
 {
-    "ifname": "ens8191",
+    "ifname": "enp52s0f1np1",
     "exp-dir": "/home/vladimiro/bxdp",
-    "ioctl-dir": "/home/andrea/onic-driver/utility",
+    "ioctl-dir": "/home/andrea/mellanox_batching/utils",
     "time": 10,
     "repetitions": 5,
+    "multicore":4,
     "progs": [
-        {
-            "name": "bdrop",
-            "path": "drop/bdrop"
-        },
-        {
-            "name": "bpass",
-            "path": "pass/bpass"
-        },
-        {
-            "name": "bcms",
-            "path": "cms/bcms"
-        },
         {
             "name": "bnitro2",
             "path": "nitroSketch/bnitro2"
         },
         {
-            "name": "bnitro1",
-            "path": "nitroSketch/bnitro1"
-        },
-        {
-            "name": "bconntrack",
-            "path": "conntrack/bconntrack"
-        },
-        {
-            "name": "bloadbalancer",
-            "path": "loadbalancer/bloadbalancer",
-            "args": "@/loadbalancer/512dest.csv"
-
-        },
-        {
-            "name": "brouter",
-            "path": "router/brouter"
-        },
-        {
-            "name": "bnat",
-            "path": "nat/bnat",
-            "args": "@/nat/nat_tbl.txt"
-        },
-        {
-            "name": "btx",
-            "path": "tx/btx"
+            "name": "obnitro2",
+            "path": "nitroSketch/obnitro2"
         }
     ],
     "before_start": [
@@ -54,6 +20,11 @@
             "name": "bpf_stats",
             "cmd": "sysctl kernel.bpf_stats_enabled",
             "expected": "0$"
+        },
+        {
+            "name": "batched",
+            "cmd": "/home/andrea/mellanox_batching/utils/ioctl 6",
+            "expected": "1"
         },
         {
             "name": "CPU frequency",
@@ -65,7 +36,6 @@
             "cmd": "sudo -u $(logname) ssh vladimiro@optiplex \"grep -o '^[[:space:]]*[^#]-s 0:.*\\.pcap' /home/vladimiro/Pktgen-DPDK/cfg/default.cfg | tr -d '[:blank:]'\""
         }
     ],
-    "fpga": true,
     "batched": true,
     "bpf-stats": false,
     "throughput": true,

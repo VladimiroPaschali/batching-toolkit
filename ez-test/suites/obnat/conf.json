@@ -6,13 +6,13 @@
     "repetitions": 1,
     "progs": [
         {
-            "name": "bnat",
-            "path": "nat/bnat",
+            "name": "tbnat",
+            "path": "nat/tbnat",
             "args": "@/nat/nat_tbl.txt"
         },
         {
-            "name": "obnat",
-            "path": "nat/obnat",
+            "name": "tobnat",
+            "path": "nat/tobnat",
             "args": "@/nat/nat_tbl.txt"
         }
     ],

@@ -48,7 +48,9 @@
         },
         {
             "name": "bloadbalancer",
-            "path": "loadbalancer/bloadbalancer"
+            "path": "loadbalancer/bloadbalancer",
+            "args": "@/loadbalancer/512dest.csv"
+
         },
         {
             "name": "brouter",

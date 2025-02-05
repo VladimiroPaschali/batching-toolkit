@@ -4,6 +4,7 @@
     "ioctl-dir":"/home/andrea/mellanox_batching/utils",
     "time": 10,
     "repetitions":5,
+    "multicore": 4,
     "progs": [
         {
             "name": "drop",
@@ -14,14 +15,6 @@
             "path": "pass/pass"
         },
         {
-            "name": "tx",
-            "path": "tx/tx"
-        },
-        {
-            "name": "trouter",
-            "path": "router/trouter"
-        },
-        {
             "name": "cms",
             "path": "cms/cms"
         },
@@ -29,11 +22,19 @@
             "name": "conntrack",
             "path": "conntrack/conntrack"
         },
-        
         {
-            "name": "tnat",
-            "path": "nat/tnat",
-            "args": "@/nat/nat_tbl.txt"
+            "name": "router",
+            "path": "router/router"
+        },
+        {
+            "name": "nat",
+            "path": "nat/nat",
+            "args": "@/nat/nat_tbl_multicore.txt"
+        },
+        {
+            "name": "loadbalancer",
+            "path": "loadbalancer/loadbalancer",
+            "args": "@/loadbalancer/512dest.csv"
         },
         {
             "name": "nitro1",
@@ -42,8 +43,11 @@
         {
             "name": "nitro2",
             "path": "nitroSketch/nitro2"
+        },
+        {
+            "name": "tx",
+            "path": "tx/tx"
         }
-        
     ],
     "before_start": [
         {

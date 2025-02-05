@@ -3,12 +3,16 @@
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir": "/home/andrea/mellanox_batching/utils",
     "time": 10,
-    "repetitions": 1,
+    "repetitions": 5,
     "progs": [
         {
             "name": "bnat",
             "path": "nat/bnat",
             "args": "@/nat/nat_tbl.txt"
+        },
+        {
+            "name": "brouter",
+            "path": "router/brouter"
         }
     ],
     "before_start": [
@@ -37,8 +41,8 @@
     "throughput": true,
     "bandwidth": false,
     "cpu": 0,
-    "perfIPC": true,
-    "perfCacheMisses": true,
-    "perfIPP": true,
+    "perfIPC": false,
+    "perfCacheMisses": false,
+    "perfIPP": false,
     "perfBranchMisses": false
 }

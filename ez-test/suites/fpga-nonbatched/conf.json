@@ -3,7 +3,7 @@
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir":"/home/andrea/onic-driver/utility",
     "time": 10,
-    "repetitions":1,
+    "repetitions":5,
     "progs": [
         {
             "name": "drop",
@@ -18,8 +18,22 @@
             "path": "cms/cms"
         },
         {
+            "name": "nitro2",
+            "path": "nitroSketch/nitro2"
+        },
+        {
+            "name": "nitro1",
+            "path": "nitroSketch/nitro1"
+        },
+        {
             "name": "conntrack",
             "path": "conntrack/conntrack"
+        },
+        {
+            "name": "loadbalancer",
+            "path": "loadbalancer/loadbalancer",
+            "args": "@/loadbalancer/512dest.csv"
+
         },
         {
             "name": "router",
@@ -53,8 +67,8 @@
     "throughput": true,
     "bandwidth": false,
     "cpu": 0,
-    "perfIPC": true,
-    "perfCacheMisses":true,
-    "perfIPP": true,
+    "perfIPC": false,
+    "perfCacheMisses":false,
+    "perfIPP": false,
     "perfBranchMisses":false
 }

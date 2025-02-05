@@ -1,0 +1,23 @@
+{
+    "ifname": "ens8191",
+    "exp-dir": "/home/vladimiro/bxdp",
+    "ioctl-dir":"/home/andrea/onic-driver/utility",
+    "time": 10,
+    "repetitions":5,
+    "progs": [
+        {
+            "name": "cms",
+            "path": "cms/cms" 
+        } 
+    ],
+    "fpga": true,
+    "batched": false,
+    "bpf-stats": false,
+    "throughput": true,
+    "bandwidth": false,
+    "cpu": 0,
+    "perfIPC": false,
+    "perfCacheMisses":false,
+    "perfIPP": false,
+    "perfBranchMisses": false
+}

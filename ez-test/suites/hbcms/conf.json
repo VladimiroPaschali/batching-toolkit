@@ -6,8 +6,8 @@
     "repetitions":5,
     "progs": [
         {
-            "name": "hbcms",
-            "path": "cms/hbcms"
+            "name": "abcms",
+            "path": "cms/abcms"
         }
     ],
     "before_start": [

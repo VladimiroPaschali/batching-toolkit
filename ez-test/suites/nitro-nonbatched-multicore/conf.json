@@ -4,14 +4,11 @@
     "ioctl-dir":"/home/andrea/mellanox_batching/utils",
     "time": 10,
     "repetitions":5,
+    "multicore": 4,
     "progs": [
         {
-            "name": "tbnat",
-            "path": "nat/tbnat",
-        },
-        {
-            "name": "tbrouter",
-            "path": "router/tbrouter"
+            "name": "nitro2",
+            "path": "nitroSketch/nitro2"
         }
     ],
     "before_start": [
@@ -23,15 +20,15 @@
         {
             "name": "batched",
             "cmd": "/home/andrea/mellanox_batching/utils/ioctl 6",
-            "expected": "1"
+            "expected": "0"
         },
         {
             "name": "CPU frequency",
             "cmd": "cpupower -c 0 frequency-info |sed -n 's/.*current CPU frequency: \\([0-9.]\\+ [MG]Hz\\).*/\\1/p'",
-            "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$"
+            "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$" 
         }
     ],
-    "batched": true,
+    "batched": false,
     "bpf-stats": false,
     "throughput": true,
     "bandwidth": false,
@@ -39,5 +36,5 @@
     "perfIPC": false,
     "perfCacheMisses":false,
     "perfIPP": false,
-    "perfBranchMisses": false
+    "perfBranchMisses":false
 }

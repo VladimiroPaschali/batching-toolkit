@@ -3,7 +3,7 @@
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir": "/home/andrea/mellanox_batching/utils",
     "time": 10,
-    "repetitions": 3,
+    "repetitions": 5,
     "progs": [
         {
             "name": "bdrop",
@@ -18,6 +18,20 @@
             "path": "cms/bcms"
         },
         {
+            "name": "bnitro2",
+            "path": "nitroSketch/bnitro2"
+        },
+        {
+            "name": "bnitro1",
+            "path": "nitroSketch/bnitro1"
+        },
+        {
+            "name": "bloadbalancer",
+            "path": "loadbalancer/bloadbalancer",
+            "args": "@/loadbalancer/512dest.csv"
+
+        },
+        {
             "name": "bconntrack",
             "path": "conntrack/bconntrack"
         },
@@ -29,14 +43,6 @@
             "name": "bnat",
             "path": "nat/bnat",
             "args": "@/nat/nat_tbl.txt"
-        },
-        {
-            "name": "bswaptx",
-            "path": "tx/bswaptx"
-        },
-        {
-            "name": "bswappass",
-            "path": "tx/bswappass"
         },
         {
             "name": "btx",
