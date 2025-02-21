@@ -70,6 +70,8 @@ def _init_csv(csv_path: str, suite_cfg:str) -> int:
         fields.append("IPP")
     if suite_cfg["perfBranchMisses"]:
         fields.append("perfBranchMisses")
+    if suite_cfg.get("perfTLBMisses", False):
+        fields.append("perfTLBMisses")
     with open(csv_path, "w",newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(fields)
@@ -174,6 +176,27 @@ def _perf_cache_misses(time, name) -> int:
     # print(result.stderr)
 
     match1 = re.search(r'([\d,]+)\s+L1-dcache-load-misses', result.stderr)
+    cache_misses = int(match1.group(1).replace(",","")) if match1 else -1
+
+    match2 = re.search(r'run:\s*(\d+)', result.stderr)
+    run_count = int(match2.group(1)) if match2 else -1
+
+    return cache_misses/run_count
+
+def _perf_tlb_misses(time, name) -> int:
+
+    # command= f"sudo perf_bpf stat -e L1-dcache-load-misses:k -C {cpu} --timeout {time*1000}"
+    bpftool_id = _bpftool_id(name)
+    command= f"sudo perf_bpf stat -b {bpftool_id} -e dTLB-load-misses --timeout {time*1000}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+    except sp.CalledProcessError as e:
+        print("Error perf cache misses command")
+        return -1
+    # print(result.stderr)
+
+    match1 = re.search(r'([\d,]+)\s+dTLB-load-misses', result.stderr)
     cache_misses = int(match1.group(1).replace(",","")) if match1 else -1
 
     match2 = re.search(r'run:\s*(\d+)', result.stderr)
@@ -362,6 +385,7 @@ def run_suite(suite_cfg:json, name:str) -> int:
             avg_cache_misses=[]
             avg_bandwidth=[]
             avg_branch_misses=[]
+            avg_tlb_misses=[]
 
             # csvdata = [program_name]
             if cfg_multicore > 1:
@@ -429,6 +453,13 @@ def run_suite(suite_cfg:json, name:str) -> int:
                     _append_to_log(logpath, f"Branch misses: {branch_misses}\n")
                     print(f"Branch misses: {branch_misses}")
 
+                if suite_cfg.get("perfTLBMisses", False):
+                    tlb_misses = _perf_tlb_misses(time, program_name)
+                    avg_tlb_misses.append(tlb_misses)
+                    allcsvdata.append(tlb_misses)
+                    _append_to_log(logpath, f"TLB misses: {tlb_misses}\n")
+                    print(f"TLB misses: {tlb_misses}")
+
                 _term_program(process, logpath)
                 _append_to_csv(allcsvpath, allcsvdata)
                 #svuita tra ripetizioni
@@ -474,6 +505,12 @@ def run_suite(suite_cfg:json, name:str) -> int:
                 csvdata.append(avg_branch_misses)
                 _append_to_log(logpath, f"Average Branch misses: {avg_branch_misses}\n")
                 print(f"Average Branch misses: {avg_branch_misses}")
+            
+            if suite_cfg.get("perfTLBMisses", False):
+                avg_tlb_misses = sum(avg_tlb_misses) / repetitions
+                csvdata.append(avg_tlb_misses)
+                _append_to_log(logpath, f"Average TLB misses: {avg_tlb_misses}\n")
+                print(f"Average TLB misses: {avg_tlb_misses}")
 
             _append_to_csv(csvpath, csvdata)
             #svuita tra ripetizioni
