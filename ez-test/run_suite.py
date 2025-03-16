@@ -52,8 +52,9 @@ def _clear_file(log_path: str) -> int:
 
 def _init_csv(csv_path: str, suite_cfg:str) -> int:
     fields = []
-    if suite_cfg.get("multicore", 1) > 1:
-        fields.append("cores")
+    if suite_cfg.get("budget", False):
+        fields.append("rxqueue")
+        fields.append("budget")
     fields.append("program")
     if "all_results.csv" in csv_path:
         fields.append("repetition")
@@ -81,20 +82,41 @@ def _append_to_csv(csv_path: str, data: list) -> int:
         writer = csv.writer(csvfile)
         writer.writerow(data)
 
-def _compute_throughput(ioctlpath:str, time:int,cfg_fpga) -> int:
-    #se fpga è true c = "" altrimenti c = ""
-    if cfg_fpga:
-        command = f"sudo {ioctlpath} -c 3 -w {time}"
-    else:
-        command = f"sudo {ioctlpath} 3 {time}"
+def _get_dropped_ethtool(ifname:str) -> int:
+    command = f"sudo ethtool -S {ifname}"
     try:
         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
-
     except sp.CalledProcessError as e:
-        print(f"Error ./ioctl 3 {time} command")
+        print(f"Error {command}")
         return -1
+    match = re.search(r'rx_xdp_drop:\s*(\d+)', result.stdout)
+    return int(match.group(1))
+
+def _compute_throughput_ethtool(ifname:str, time:int) -> int:
     
-    return int(result.stdout)
+    pre = _get_dropped_ethtool(ifname)
+    sleep(time)
+    post = _get_dropped_ethtool(ifname)
+    return post - pre
+
+def _compute_throughput(ioctlpath:str, time:int, cfg_fpga:bool, cfg_ethtool:bool, ifname:str) -> int:
+    #se fpga è true c = "" altrimenti c = ""
+    if cfg_ethtool:
+        return _compute_throughput_ethtool(ifname, time)
+    else:
+        if cfg_fpga:
+            command = f"sudo {ioctlpath} -c 3 -w {time}"
+        else:
+            command = f"sudo {ioctlpath} 3 {time}"
+            print(command)
+        try:
+            result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+        except sp.CalledProcessError as e:
+            print(f"Error ./ioctl 3 {time} command")
+            return -1
+        
+        return int(result.stdout)
 
 def _compute_bandwidth(ioctlpath:str, time:int) -> int:
     command = f"sudo {ioctlpath} 4 {time}"
@@ -260,78 +282,31 @@ def _perf_ipp(ioctlpath:str,cpu, time, cfg_fpga:bool) -> int:
     # print(f"Instructions: {instructions}")
     return instructions/pkts
 
-def _multicore(cfg_fpga:bool, cfg_batched:bool, core:int, ifname) -> int:
-    buoni = [0,4,12,20]
-    command =[]
-    indir = f"sudo ethtool --set-rxfh-indir {ifname} equal 32"
-    s1 = f"sudo ethtool --set-rxfh-indir {ifname} weight 1"
-    s2 = f"sudo ethtool --set-rxfh-indir {ifname} weight 1 0 0 0 1"
-    s4 = f"sudo ethtool --set-rxfh-indir {ifname} weight 1 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1"
 
-    # b2 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6920 m 0x001f action 0; sudo ethtool -N {ifname} flow-type ether proto 0x6900 m 0x001f action 4"
-    # b4 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6900 m 0x000f action 0; sudo ethtool -N {ifname} flow-type ether proto 0x6910 m 0x000f action 4; sudo ethtool -N {ifname} flow-type ether proto 0x6920 m 0x000f action 12; sudo ethtool -N {ifname} flow-type ether proto 0x6930 m 0x000f action 20"
-    b21 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6920 m 0x001f action 0"
-    b22 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6900 m 0x001f action 4"
-    b41 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6900 m 0x000f action 0"
-    b42 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6910 m 0x000f action 4"
-    b43 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6920 m 0x000f action 12"
-    b44 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6930 m 0x000f action 20"
-    if cfg_batched:
-        if core == 1:
-            # _multicore_reset(ifname,cfg_batched)
-            command .append("sudo ../deleteRules.sh")       
-        elif core == 2:
-            command .append("sudo ../deleteRules.sh")       
-            command.append(b21)
-            command.append(b22)
-        elif core == 4:
-            command .append("sudo ../deleteRules.sh")       
-            command.append(b41)
-            command.append(b42)
-            command.append(b43)
-            command.append(b44)
 
-    else:
-        command.append(indir)
-        if core == 1:
-            command.append(s1)
-        elif core == 2:
-            command.append(s2)
-        elif core == 4:
-            command.append(s4)
-    if cfg_fpga:
-        print("FPGA non fatto")
+def _budget(budgetIndex:int, ifname:str, rxqueue:list, txqueue:list) -> int:
+    # rxqueue = [128, 256, 512, 1024, 2048, 4096, 8192]
+    # txqueue = [2, 4, 8, 16, 32, 64, 128, 256, 512] #budget
+
+    if budgetIndex >  len(rxqueue)*len(txqueue):
+        print("Core out of range")
         return -1
 
-    # print(command)
-    for i in range(len(command)):
+    command = f"sudo ethtool -G {ifname} rx {rxqueue[(budgetIndex)%len(rxqueue)]} tx {txqueue[(budgetIndex)//len(rxqueue)]}"
+    print(command)
 
-        try:
-            # print(command [i])
-            # print(shlex.split(command))
-            result = sp.run(shlex.split(command[i]),capture_output=True,text=True, check=True)
-            # print(result.stderr)
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+        # print(result.stderr)
+    except sp.CalledProcessError as e:
+        print("Error budget command")
+        return -1
 
-        except sp.CalledProcessError as e:
-            print("Error multicore command")
-            print(command[i])
-            return -1
     sleep(1)
     return 0
 
-# def _multicore_reset(ifname:str,cfg_batched:bool) -> int:
-#     command ="sudo ../deleteRules.sh"
-#     try:
-#         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
-
-#     except sp.CalledProcessError as e:
-#         print("Error reset multicore command")
-#         print(command)
-#         return -1
-
 def run_suite(suite_cfg:json, name:str) -> int:
 
-    
     absolute_path = os.path.abspath(suite_cfg["exp-dir"])
     ifname = suite_cfg["ifname"]
     logpath = os.path.join(os.getcwd(),"suites", name, "log.txt")
@@ -344,8 +319,9 @@ def run_suite(suite_cfg:json, name:str) -> int:
 
     cfg_fpga = suite_cfg.get("fpga", False)
     cfg_batched = suite_cfg.get("batched", False)
-
-    cfg_multicore = suite_cfg.get("multicore", 1)
+    # cfg_multicore = suite_cfg.get("multicore", 1)
+    cfg_ethtool = suite_cfg.get("ethtool", False)
+    cfg_budget = suite_cfg.get("budget", False)
     
     
     #clear csv and sets up fiels
@@ -365,13 +341,19 @@ def run_suite(suite_cfg:json, name:str) -> int:
     csvdata =[]
     allcsvdata = []
 
-    for core in range(1,cfg_multicore+1):
-        if cfg_multicore > 1:
-            if core == 3:
-                continue
-            _multicore(cfg_fpga, cfg_batched, core, ifname)
-        print(f"Core: {core}")
+    rxqueue = [128, 256, 512, 1024, 2048, 4096, 8192]
+    txqueue = [2, 4, 8, 16, 32, 64, 128, 256, 512] #budget
 
+    if cfg_budget:
+        range_budget = len(rxqueue)*len(txqueue)
+        print(f"Budget: {range_budget}")
+    else:
+        range_budget = 1
+
+    for budgetIndex in range(0,range_budget):
+        if cfg_budget:
+            if _budget(budgetIndex, ifname, rxqueue, txqueue) < 0:
+                break
         for program in suite_cfg["progs"]:
             program_path=os.path.join(absolute_path, program["path"])
             program_name = program["name"]
@@ -388,8 +370,9 @@ def run_suite(suite_cfg:json, name:str) -> int:
             avg_tlb_misses=[]
 
             # csvdata = [program_name]
-            if cfg_multicore > 1:
-                csvdata.append(core)
+            if cfg_budget:
+                csvdata.append(rxqueue[(budgetIndex)%len(rxqueue)])
+                csvdata.append(txqueue[(budgetIndex)//len(rxqueue)])
             csvdata.append(program_name)
             
             before_exp(suite_cfg)
@@ -397,8 +380,9 @@ def run_suite(suite_cfg:json, name:str) -> int:
             for repetition in range(repetitions):
 
                 # allcsvdata = [program_name]
-                if cfg_multicore > 1:
-                    allcsvdata.append(core)
+                if cfg_budget:
+                    allcsvdata.append(rxqueue[(budgetIndex)%len(rxqueue)])
+                    allcsvdata.append(txqueue[(budgetIndex)//len(rxqueue)])
                 allcsvdata.append(program_name)
                 allcsvdata.append(repetition+1)
 
@@ -408,7 +392,7 @@ def run_suite(suite_cfg:json, name:str) -> int:
                 print(f"Repetition: {repetition+1}")
 
                 if suite_cfg["throughput"]:
-                    throughput = _compute_throughput(ioctlpath, time, cfg_fpga) // time 
+                    throughput = _compute_throughput(ioctlpath, time, cfg_fpga, cfg_ethtool, ifname) // time 
                     avg_throughput.append(throughput)
                     allcsvdata.append(throughput)
                     allcsvdata.append(0) # used for std
