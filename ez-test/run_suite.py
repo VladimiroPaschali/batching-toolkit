@@ -8,6 +8,7 @@ import subprocess as sp
 import numpy as np
 from time import sleep
 from hooks import before_exp, after_exp
+import psutil
 
 # SUITE_PATH = "suites"
 # def _load_config(suite_path: str) -> dict:
@@ -73,6 +74,8 @@ def _init_csv(csv_path: str, suite_cfg:str) -> int:
         fields.append("perfBranchMisses")
     if suite_cfg.get("perfTLBMisses", False):
         fields.append("perfTLBMisses")
+    if suite_cfg.get("cpuUsage", False):
+        fields.append("cpuUsage")
     with open(csv_path, "w",newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(fields)
@@ -305,6 +308,13 @@ def _budget(budgetIndex:int, ifname:str, rxqueue:list, txqueue:list) -> int:
     sleep(1)
     return 0
 
+def _cpu_usage(time:int, core:int) -> int:
+    
+    cpus = psutil.cpu_percent(interval=time, percpu=True)
+    # print (cpus[core])
+    return cpus[core]
+
+
 def run_suite(suite_cfg:json, name:str) -> int:
 
     absolute_path = os.path.abspath(suite_cfg["exp-dir"])
@@ -346,14 +356,13 @@ def run_suite(suite_cfg:json, name:str) -> int:
 
     if cfg_budget:
         range_budget = len(rxqueue)*len(txqueue)
-        print(f"Budget: {range_budget}")
     else:
         range_budget = 1
 
     for budgetIndex in range(0,range_budget):
-        if cfg_budget:
-            if _budget(budgetIndex, ifname, rxqueue, txqueue) < 0:
-                break
+        # if cfg_budget:
+        #     if _budget(budgetIndex, ifname, rxqueue, txqueue) < 0:
+        #         break
         for program in suite_cfg["progs"]:
             program_path=os.path.join(absolute_path, program["path"])
             program_name = program["name"]
@@ -368,6 +377,8 @@ def run_suite(suite_cfg:json, name:str) -> int:
             avg_bandwidth=[]
             avg_branch_misses=[]
             avg_tlb_misses=[]
+            avg_core_usage=[]
+
 
             # csvdata = [program_name]
             if cfg_budget:
@@ -387,6 +398,10 @@ def run_suite(suite_cfg:json, name:str) -> int:
                 allcsvdata.append(repetition+1)
 
                 process = _load_program(program_path, ifname, logpath, vargs)
+
+                if cfg_budget:
+                    if _budget(budgetIndex, ifname, rxqueue, txqueue) < 0:
+                        break
 
                 _append_to_log(logpath, f"Repetition: {repetition+1}\n")
                 print(f"Repetition: {repetition+1}")
@@ -444,6 +459,14 @@ def run_suite(suite_cfg:json, name:str) -> int:
                     _append_to_log(logpath, f"TLB misses: {tlb_misses}\n")
                     print(f"TLB misses: {tlb_misses}")
 
+
+                if suite_cfg.get("cpuUsage", False):
+                    cpu_usage = _cpu_usage(time=1,core=0)
+                    avg_core_usage.append(cpu_usage)
+                    allcsvdata.append(cpu_usage)
+                    _append_to_log(logpath, f"Core usage: {cpu_usage}\n")
+                    print(f"Core usage: {cpu_usage}")
+
                 _term_program(process, logpath)
                 _append_to_csv(allcsvpath, allcsvdata)
                 #svuita tra ripetizioni
@@ -495,6 +518,11 @@ def run_suite(suite_cfg:json, name:str) -> int:
                 csvdata.append(avg_tlb_misses)
                 _append_to_log(logpath, f"Average TLB misses: {avg_tlb_misses}\n")
                 print(f"Average TLB misses: {avg_tlb_misses}")
+
+            if suite_cfg.get("cpuUsage", False):
+                avg_core_usage = sum(avg_core_usage) / repetitions
+                csvdata.append(avg_core_usage)
+                _append_to_log(logpath, f"Average Core usage: {avg_core_usage}\n")
 
             _append_to_csv(csvpath, csvdata)
             #svuita tra ripetizioni

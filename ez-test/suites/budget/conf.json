@@ -3,7 +3,7 @@
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir":"/home/andrea/mellanox_batching/utils",
     "time": 10,
-    "repetitions":5,
+    "repetitions":3,
     "multicore": 100,
     "progs": [
         {
@@ -47,5 +47,6 @@
     "perfCacheMisses":true,
     "perfIPP": false,
     "perfBranchMisses":false,
-    "perfTLBMisses":true
+    "perfTLBMisses":true,
+    "cpuUsage":true
 }
