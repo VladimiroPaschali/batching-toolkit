@@ -39,14 +39,18 @@
     "batched": false,
     "ethtool":true,
     "budget": true,
-    "bpf-stats": false,
     "throughput": true,
     "bandwidth": false,
     "cpu": 0,
     "perfIPC": false,
-    "perfCacheMisses":true,
+    "perfCacheMisses":false,
     "perfIPP": false,
     "perfBranchMisses":false,
-    "perfTLBMisses":true,
-    "cpuUsage":true
+    "perfTLBMisses":false,
+    "cpuUsage":true,
+    "perfL1Rateo":true,
+    "perfL3Rateo":true,
+    "perfTLBRateo":true,
+    "interrupt":true
+
 }

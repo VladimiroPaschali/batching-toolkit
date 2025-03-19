@@ -54,8 +54,8 @@ def _clear_file(log_path: str) -> int:
 def _init_csv(csv_path: str, suite_cfg:str) -> int:
     fields = []
     if suite_cfg.get("budget", False):
-        fields.append("rxqueue")
         fields.append("budget")
+        fields.append("rxqueue")
     fields.append("program")
     if "all_results.csv" in csv_path:
         fields.append("repetition")
@@ -76,6 +76,14 @@ def _init_csv(csv_path: str, suite_cfg:str) -> int:
         fields.append("perfTLBMisses")
     if suite_cfg.get("cpuUsage", False):
         fields.append("cpuUsage")
+    if suite_cfg.get("perfL1Rateo", False):
+        fields.append("perfL1Rateo")
+    if suite_cfg.get("perfL3Rateo", False):
+        fields.append("perfL3Rateo")
+    if suite_cfg.get("perfTLBRateo", False):
+        fields.append("perfTLBRateo")
+    if suite_cfg.get("interrupt", False):
+        fields.append("interrupt")
     with open(csv_path, "w",newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(fields)
@@ -229,6 +237,56 @@ def _perf_tlb_misses(time, name) -> int:
 
     return cache_misses/run_count
 
+def _perf_l1_rateo(time, name) -> float:
+
+    # command= f"sudo perf_bpf stat -e L1-dcache-load-misses:k -C {cpu} --timeout {time*1000}"
+    bpftool_id = _bpftool_id(name)
+    command= f"sudo perf_bpf stat -b {bpftool_id} -e L1-dcache-load-misses,L1-dcache-load --timeout {time*1000}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+    except sp.CalledProcessError as e:
+        print("Error perf cache misses command")
+        return -1
+
+    match = re.search(r"#\s+([\d.]+)%", result.stderr)
+    rateo = float(match.group(1)) if match else -1
+
+    return rateo
+
+def _perf_l3_rateo(time, name) -> float:
+
+    bpftool_id = _bpftool_id(name)
+    command= f"sudo perf_bpf stat -b {bpftool_id} -e LLC-load-misses,LLC-load --timeout {time*1000}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+    except sp.CalledProcessError as e:
+        print("Error perf cache misses command")
+        return -1
+
+    match = re.search(r"#\s+([\d.]+)%", result.stderr)
+    rateo = float(match.group(1)) if match else -1
+
+    return rateo
+
+def _perf_tlb_rateo(time, name) -> float:
+
+    bpftool_id = _bpftool_id(name)
+    command= f"sudo perf_bpf stat -b {bpftool_id} -e dTLB-load-misses,dTLB-loads --timeout {time*1000}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+    except sp.CalledProcessError as e:
+        print("Error perf cache misses command")
+        return -1
+    print(result.stderr)
+
+    match = re.search(r"#\s+([\d.]+)%", result.stderr)
+    rateo = float(match.group(1)) if match else -1
+
+    return rateo
+
 def _batched(ioctlpath:str ,cfg_batch:bool) -> int:
 
     ioctlval = int(cfg_batch)
@@ -314,6 +372,26 @@ def _cpu_usage(time:int, core:int) -> int:
     # print (cpus[core])
     return cpus[core]
 
+def _read_interrupt():
+    command = 'grep "^119:" /proc/interrupts'
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+    except sp.CalledProcessError as e:
+        print("Error interrupt command")
+        return -1
+        
+    match = re.search(r"\d+:\s+(\d+)", result.stdout)
+    interrupt = int(match.group(1)) if match else -1
+    return interrupt
+    
+def _interrupt(time:int) -> int:
+    pre=_read_interrupt()
+    sleep(time)
+    post=_read_interrupt()
+    return post-pre
+
+    
+
 
 def run_suite(suite_cfg:json, name:str) -> int:
 
@@ -378,12 +456,18 @@ def run_suite(suite_cfg:json, name:str) -> int:
             avg_branch_misses=[]
             avg_tlb_misses=[]
             avg_core_usage=[]
+            avg_l1_rateo=[]
+            avg_l3_rateo=[]
+            avg_tlb_rateo=[]
+            avg_interrupt=[]
 
 
             # csvdata = [program_name]
             if cfg_budget:
-                csvdata.append(rxqueue[(budgetIndex)%len(rxqueue)])
+                #budget
                 csvdata.append(txqueue[(budgetIndex)//len(rxqueue)])
+                #rxqueue
+                csvdata.append(rxqueue[(budgetIndex)%len(rxqueue)])
             csvdata.append(program_name)
             
             before_exp(suite_cfg)
@@ -467,6 +551,35 @@ def run_suite(suite_cfg:json, name:str) -> int:
                     _append_to_log(logpath, f"Core usage: {cpu_usage}\n")
                     print(f"Core usage: {cpu_usage}")
 
+                if suite_cfg.get("perfL1Rateo", False):
+                    l1rateo = _perf_l1_rateo(time, program_name)
+                    avg_l1_rateo.append(l1rateo)
+                    allcsvdata.append(l1rateo)
+                    _append_to_log(logpath, f"L1 rateo: {l1rateo}\n")
+                    print(f"L1 rateo: {l1rateo}")
+                
+                if suite_cfg.get("perfL3Rateo", False):
+                    l3rateo = _perf_l3_rateo(time, program_name)
+                    avg_l3_rateo.append(l3rateo)
+                    allcsvdata.append(l3rateo)
+                    _append_to_log(logpath, f"L3 rateo: {l3rateo}\n")
+                    print(f"L3 rateo: {l3rateo}")
+                
+                if suite_cfg.get("perfTLBRateo", False):
+                    tlb_rateo = _perf_tlb_rateo(time, program_name)
+                    avg_tlb_rateo.append(tlb_rateo)
+                    allcsvdata.append(tlb_rateo)
+                    _append_to_log(logpath, f"TLB rateo: {tlb_rateo}\n")
+                    print(f"TLB rateo: {tlb_rateo}")
+
+                if suite_cfg.get("interrupt", False):
+                    interrupt = _interrupt(time)
+                    avg_interrupt.append(interrupt)
+                    allcsvdata.append(interrupt)
+                    _append_to_log(logpath, f"Interrupts: {interrupt}\n")
+                    print(f"Interrupts: {interrupt}")
+                    
+
                 _term_program(process, logpath)
                 _append_to_csv(allcsvpath, allcsvdata)
                 #svuita tra ripetizioni
@@ -523,6 +636,26 @@ def run_suite(suite_cfg:json, name:str) -> int:
                 avg_core_usage = sum(avg_core_usage) / repetitions
                 csvdata.append(avg_core_usage)
                 _append_to_log(logpath, f"Average Core usage: {avg_core_usage}\n")
+
+            if suite_cfg.get("perfL1Rateo", False):
+                avg_l1_rateo = sum(avg_l1_rateo) / repetitions
+                csvdata.append(avg_l1_rateo)
+                _append_to_log(logpath, f"Average L1 rateo: {avg_l1_rateo}\n")
+            
+            if suite_cfg.get("perfL3Rateo", False):
+                avg_l3_rateo = sum(avg_l3_rateo) / repetitions
+                csvdata.append(avg_l3_rateo)
+                _append_to_log(logpath, f"Average L3 rateo: {avg_l3_rateo}\n")
+            
+            if suite_cfg.get("perfTLBRateo", False):
+                avg_tlb_rateo = sum(avg_tlb_rateo) / repetitions
+                csvdata.append(avg_tlb_rateo)
+                _append_to_log(logpath, f"Average TLB rateo: {avg_tlb_rateo}\n")
+            
+            if suite_cfg.get("interrupt", False):
+                avg_interrupt = sum(avg_interrupt) / repetitions
+                csvdata.append(avg_interrupt)
+                _append_to_log(logpath, f"Average Interrupts: {avg_interrupt}\n")
 
             _append_to_csv(csvpath, csvdata)
             #svuita tra ripetizioni
