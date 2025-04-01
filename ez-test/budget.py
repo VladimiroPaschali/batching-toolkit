@@ -74,6 +74,10 @@ def _init_csv(csv_path: str, suite_cfg:str) -> int:
         fields.append("perfBranchMisses")
     if suite_cfg.get("perfTLBMisses", False):
         fields.append("perfTLBMisses")
+    if suite_cfg.get("perfTLBStores", False):
+        fields.append("perfTLBStores")
+    if suite_cfg.get("perfTLBStoreMisses", False):
+        fields.append("perfTLBStoreMisses")
     if suite_cfg.get("cpuUsage", False):
         fields.append("cpuUsage")
     if suite_cfg.get("perfL1Rateo", False):
@@ -237,6 +241,49 @@ def _perf_tlb_misses(time, name) -> int:
 
     return cache_misses/run_count
 
+
+def _perf_tlb_stores(time, name) -> int:
+
+    # command= f"sudo perf_bpf stat -e L1-dcache-load-misses:k -C {cpu} --timeout {time*1000}"
+    bpftool_id = _bpftool_id(name)
+    command= f"sudo perf_bpf stat -b {bpftool_id} -e dTLB-stores --timeout {time*1000}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+    except sp.CalledProcessError as e:
+        print("Error perf cache misses command")
+        return -1
+    # print(result.stderr)
+
+    match1 = re.search(r'([\d,]+)\s+dTLB-stores', result.stderr)
+    cache_misses = int(match1.group(1).replace(",","")) if match1 else -1
+
+    match2 = re.search(r'run:\s*(\d+)', result.stderr)
+    run_count = int(match2.group(1)) if match2 else -1
+
+    return cache_misses/run_count
+
+def _perf_tlb_store_misses(time, name) -> int:
+
+    # command= f"sudo perf_bpf stat -e L1-dcache-load-misses:k -C {cpu} --timeout {time*1000}"
+    bpftool_id = _bpftool_id(name)
+    command= f"sudo perf_bpf stat -b {bpftool_id} -e dTLB-store-misses --timeout {time*1000}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+    except sp.CalledProcessError as e:
+        print("Error perf cache misses command")
+        return -1
+    # print(result.stderr)
+
+    match1 = re.search(r'([\d,]+)\s+dTLB-store-misses', result.stderr)
+    cache_misses = int(match1.group(1).replace(",","")) if match1 else -1
+
+    match2 = re.search(r'run:\s*(\d+)', result.stderr)
+    run_count = int(match2.group(1)) if match2 else -1
+
+    return cache_misses/run_count
+
 def _perf_l1_rateo(time, name) -> float:
 
     # command= f"sudo perf_bpf stat -e L1-dcache-load-misses:k -C {cpu} --timeout {time*1000}"
@@ -273,14 +320,16 @@ def _perf_l3_rateo(time, name) -> float:
 def _perf_tlb_rateo(time, name) -> float:
 
     bpftool_id = _bpftool_id(name)
+    # command= f"sudo perf_bpf stat -b {bpftool_id} -e dTLB-load-misses,dTLB-loads --timeout {time*1000}"
     command= f"sudo perf_bpf stat -b {bpftool_id} -e dTLB-load-misses,dTLB-loads --timeout {time*1000}"
+
     try:
         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
 
     except sp.CalledProcessError as e:
         print("Error perf cache misses command")
         return -1
-    print(result.stderr)
+    # print(result.stderr)
 
     match = re.search(r"#\s+([\d.]+)%", result.stderr)
     rateo = float(match.group(1)) if match else -1
@@ -455,6 +504,8 @@ def run_suite(suite_cfg:json, name:str) -> int:
             avg_bandwidth=[]
             avg_branch_misses=[]
             avg_tlb_misses=[]
+            avg_tlb_store=[]
+            avg_tlb_store_misses=[]
             avg_core_usage=[]
             avg_l1_rateo=[]
             avg_l3_rateo=[]
@@ -542,6 +593,20 @@ def run_suite(suite_cfg:json, name:str) -> int:
                     allcsvdata.append(tlb_misses)
                     _append_to_log(logpath, f"TLB misses: {tlb_misses}\n")
                     print(f"TLB misses: {tlb_misses}")
+                
+                if suite_cfg.get("perfTLBStores", False):
+                    tlb_store = _perf_tlb_stores(time, program_name)
+                    avg_tlb_store.append(tlb_store)
+                    allcsvdata.append(tlb_store)
+                    _append_to_log(logpath, f"TLB stores: {tlb_store}\n")
+                    print(f"TLB stores: {tlb_store}")
+                
+                if suite_cfg.get("perfTLBStoreMisses", False):
+                    tlb_store_misses = _perf_tlb_store_misses(time, program_name)
+                    avg_tlb_store_misses.append(tlb_store_misses)
+                    allcsvdata.append(tlb_store_misses)
+                    _append_to_log(logpath, f"TLB store misses: {tlb_store_misses}\n")
+                    print(f"TLB store misses: {tlb_store_misses}")
 
 
                 if suite_cfg.get("cpuUsage", False):
@@ -631,6 +696,18 @@ def run_suite(suite_cfg:json, name:str) -> int:
                 csvdata.append(avg_tlb_misses)
                 _append_to_log(logpath, f"Average TLB misses: {avg_tlb_misses}\n")
                 print(f"Average TLB misses: {avg_tlb_misses}")
+            
+            if suite_cfg.get("perfTLBStores", False):
+                avg_tlb_store = sum(avg_tlb_store) / repetitions
+                csvdata.append(avg_tlb_store)
+                _append_to_log(logpath, f"Average TLB stores: {avg_tlb_store}\n")
+                print(f"Average TLB stores: {avg_tlb_store}")
+            
+            if suite_cfg.get("perfTLBStoreMisses", False):
+                avg_tlb_store_misses = sum(avg_tlb_store_misses) / repetitions
+                csvdata.append(avg_tlb_store_misses)
+                _append_to_log(logpath, f"Average TLB store misses: {avg_tlb_store_misses}\n")
+                print(f"Average TLB store misses: {avg_tlb_store_misses}")
 
             if suite_cfg.get("cpuUsage", False):
                 avg_core_usage = sum(avg_core_usage) / repetitions

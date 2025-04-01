@@ -4,7 +4,9 @@ import os, glob, shutil
 import subprocess as sp
 import re
 import shlex
-from run_suite import run_suite
+from batched import run_suite as batched
+from budget import run_suite as budget
+from budget_rate import run_suite as budget_rate
 from hooks import before_start, after_finish
 from colors import *
 
@@ -88,8 +90,18 @@ def run(name):
     
     print(f"Running suite {name}")
     before_start(suite_cfg)
-    print(f"{OKCYAN} ---- Starting suite ----{RESET}")
-    print(run_suite(suite_cfg, name))
+    type = suite_cfg.get("type", "batched")
+    match type:
+        case "batched":
+            print(f"{OKCYAN} ---- Starting Batched suite ----{RESET}")
+            print(batched(suite_cfg, name))
+        case "budget":
+            print(f"{OKCYAN} ---- Starting Budget suite ----{RESET}")
+            print(budget(suite_cfg, name))
+        case "budget_rate":
+            print(f"{OKCYAN} ---- Starting Budget Rate suite ----{RESET}")
+            print(budget_rate(suite_cfg, name))
+
     after_finish(suite_cfg)
     return 0
 
