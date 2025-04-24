@@ -2,8 +2,8 @@
     "ifname": "enp52s0f1np1",
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir":"/home/andrea/mellanox_batching/utils",
-    "time": 10,
-    "repetitions":3,
+    "time": 5,
+    "repetitions":2,
     "multicore": 100,
     "type": "budget",
     "progs": [
@@ -50,10 +50,10 @@
     "perfTLBMisses":false,
     "perfTLBStores":false,
     "perfTLBStoreMisses":false,
-    "cpuUsage":true,
-    "perfL1Rateo":true,
-    "perfL3Rateo":true,
-    "perfTLBRateo":true,
-    "interrupt":true
+    "cpuUsage":false,
+    "perfL1Rateo":false,
+    "perfL3Rateo":false,
+    "perfTLBRateo":false,
+    "interrupt":false
 
 }

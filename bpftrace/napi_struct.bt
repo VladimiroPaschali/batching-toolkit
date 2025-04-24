@@ -1,0 +1,27 @@
+// BEGIN {
+//     @count = 0;
+//     @sum_napi_weight = 0;
+//     @sum_state = 0;
+// }
+kprobe:mlx5e_napi_poll {
+    $napi = (struct napi_struct *)arg0;
+    @count[cpu]++;
+    @sum_napi_weight[cpu] += $napi->weight;
+    @sum_state[cpu] += $napi->state;
+}
+
+interval:s:5 {
+             $i = 0;
+             while ($i < 32) {
+                 if (@count[$i] > 0) {
+                     printf("CPU %d: napi_weight=%d\n", $i, @sum_napi_weight[$i] / @count[$i]);
+                 }
+                 $i++;
+             }
+    }
+
+// END {
+//         clear(@sum_napi_id);
+//         clear(@sum_state);
+//
+// }

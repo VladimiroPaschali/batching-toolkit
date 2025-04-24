@@ -1,37 +1,5 @@
 #!/usr/bin/perl -w
 
-=head1 NAME
-
- ethtool_stats.pl - Sample changing adapter statistics from ethtool -S
-
-=head1 SYNOPSIS
-
- ethtool_stats.pl --dev DEVICE [options]
-
- options:
-    --dev    Ethernet adapter(s)/device(s) to get stats from.
-             (specify --dev more times to sample multiple devices)
-    --count  How many seconds sampling will run (default: infinite)
-    --sec    Sets sample interval in seconds (default: 1.0 sec)
-    --all    List all zero stats
-    --drop   Print only the 'rx_drop' field
-    --help   Brief usage/help message.
-    --man    Full documentation.
-
-=head1 DESCRIPTION
-
- This script shows ethtool (-S|--statistics) stats, but only stats
- that change.  And then reports stats per second.
-
- Created this script because some drivers, e.g. mlx5, report false
- stats via ifconfig.
-
-=head1 AUTHOR
-
- Jesper Dangaard Brouer <netoptimizer@brouer.com>
-
-=cut
-
 use strict;
 use warnings FATAL => 'all';
 use Data::Dumper;
@@ -47,14 +15,17 @@ my $man      = 0;
 my $all      = 0;
 my $count    = 0;
 my $delay    = 1;
-my $droponly = 0;   # <-- new variable for --drop option
+my $droponly = 0;
+my $metrics_str = undef;
+my @metrics = ();  # Array per memorizzare le metriche richieste
 
 GetOptions(
-    'dev=s'    => \@DEV,
+    'dev=s'    => \my $dev_str,
     'count=s'  => \$count,
     'sec=s'    => \$delay,
     'all!'     => \$all,
-    'drop!'    => \$droponly,   # <-- parse --drop
+    'drop!'    => \$droponly,
+    'metrics=s' => \$metrics_str,
     'debug=s'  => \$debug,
     'dumper!'  => \$dumper,
     'help|?'   => sub { Getopt::Long::HelpMessage(-verbose => 1) },
@@ -62,13 +33,22 @@ GetOptions(
 ) or pod2usage(2);
 
 pod2usage(-exitstatus => 0, -verbose => 2) if $man;
-pod2usage(-exitstatus => 1, -verbose => 1) unless scalar @DEV;
+pod2usage(-exitstatus => 1, -verbose => 1) unless $dev_str;
+
+# Converti la stringa di interfacce in un array
+@DEV = split /,/, $dev_str;
+@DEV = map { s/^\s+|\s+$//g; $_ } @DEV;
+
+# Converti la stringa di metriche in un array
+if (defined $metrics_str) {
+    @metrics = split /,/, $metrics_str;
+    @metrics = map { s/^\s+|\s+$//g; $_ } @metrics;
+}
 
 my %STATS;
 
-sub collect_stats($) {
-    # Parse ethtool stats and return key=value hash
-    my $device = shift;
+sub collect_stats {
+    my ($device) = @_;
     my %hash;
     open(ETHTOOL, "sudo /usr/sbin/ethtool -S $device |")
         or die "Failed to run ethtool on device $device: $!";
@@ -89,40 +69,34 @@ sub collect_stats($) {
     return \%hash;
 }
 
-sub difference($$$) {
-    my ($device, $current_stats, $prev_stats) = @_;
-    # If we don't have a previous stats sample, return 0 (nothing to print).
+sub difference {
+    my ($device, $current_stats, $prev_stats, $metrics_ref) = @_;
     return 0 if (!defined $prev_stats);
 
+    my @metrics = @$metrics_ref if $metrics_ref;
     my $period = $current_stats->{timestamp} - $prev_stats->{timestamp};
     print "timestamp $current_stats->{timestamp} - $prev_stats->{timestamp} = $period\n" if $debug;
-    if (($period > $delay * 2) || ($period < ($delay / 2))) {
-        print " ***WARN***: Sample period ($delay) not accurate ($period)\n";
-    }
-
-    # We only need to iterate over actual ethtool stats, so remove timestamps
+    
     delete $prev_stats->{timestamp};
-
+    
     my @keys = sort keys %$prev_stats;
     my $something_changed = 0;
 
     foreach my $key (@keys) {
-        # If --drop is used, skip everything except 'rx_drop'
+        if (@metrics && !grep { $_ eq $key } @metrics) {
+            next;
+        }
         if ($droponly && $key ne 'rx_xdp_drop') {
             next;
         }
-
+        
         my $value_now  = $current_stats->{$key};
         my $value_prev = $prev_stats->{$key};
         my $diff = ($value_now - $value_prev) / $period;
 
-        # Skip zero diffs unless --all is specified
         next if (($diff == 0) && !$all);
-
-        # Round off the number
+        
         $diff = sprintf("%.0f", $diff);
-
-        # Add thousands comma separators
         (my $pretty = $diff) =~ s/(\d{1,3}?)(?=(\d{3})+$)/$1,/g;
 
         printf("Ethtool(%-8s) stat: %12d (%15s) <= %s /sec\n",
@@ -132,19 +106,18 @@ sub difference($$$) {
     return $something_changed;
 }
 
-sub stats_loop() {
-    my $collect = $count + 1; # We do an initial "warm-up" round
+sub stats_loop {
+    my $collect = $count + 1;
     my %prev    = ();
     my %stats   = ();
 
     while (($count == 0) ? 1 : $collect--) {
-        print "\nShow adapter(s) (" . join(' ', @DEV) .
-              ") statistics (ONLY that changed!)\n";
+        print "\nShow adapter(s) (" . join(' ', @DEV) . ") statistics (ONLY that changed!)\n";
         my $changes = 0;
         foreach my $device (@DEV){
             $stats{$device} = collect_stats($device);
             $changes += difference($device,
-                                   $stats{$device}, $prev{$device});
+                                   $stats{$device}, $prev{$device}, \@metrics);
         }
         if (!scalar keys %prev) {
             print " ***NOTE***: Collecting stats for next round ($delay sec)\n";

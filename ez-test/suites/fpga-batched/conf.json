@@ -30,12 +30,6 @@
             "path": "conntrack/bconntrack"
         },
         {
-            "name": "bloadbalancer",
-            "path": "loadbalancer/bloadbalancer",
-            "args": "@/loadbalancer/512dest.csv"
-
-        },
-        {
             "name": "brouter",
             "path": "router/brouter"
         },
@@ -43,10 +37,6 @@
             "name": "bnat",
             "path": "nat/bnat",
             "args": "@/nat/nat_tbl.txt"
-        },
-        {
-            "name": "btx",
-            "path": "tx/btx"
         }
     ],
     "before_start": [
@@ -71,8 +61,9 @@
     "throughput": true,
     "bandwidth": false,
     "cpu": 0,
-    "perfIPC": false,
-    "perfCacheMisses": false,
+    "perfIPC": true,
+    "perfCacheMisses": true,
     "perfIPP": false,
-    "perfBranchMisses": false
+    "perfBranchMisses": false,
+    "perfTLBMisses": true
 }

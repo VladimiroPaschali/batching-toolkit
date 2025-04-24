@@ -1,0 +1,5 @@
+tracepoint:napi:napi_poll{
+                           if (cpu == 0){
+                                printf("%d - work_done: %d      budget: %d\n", args->dev_name, args->work, args->budget);
+                           }
+}

@@ -22,6 +22,7 @@ import psutil
 
 def _load_program(program_path: str, ifname: str, logpath:str, vargs) -> sp.Popen:
     command = f"sudo {program_path} {ifname} {vargs}"
+    # command = f"sudo taskset -c 0 {program_path} {ifname} {vargs}"
     print(command)
     #shell false permette di fare process.terminate()
     #pipare o out o err se no si rompe la shell
@@ -107,6 +108,39 @@ def _get_dropped_ethtool(ifname:str) -> int:
     match = re.search(r'rx_xdp_drop:\s*(\d+)', result.stdout)
     return int(match.group(1))
 
+def _get_rx_pkts_ethtool(ifname:str) -> int:
+    command = f"sudo ethtool -S {ifname}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+    except sp.CalledProcessError as e:
+        print(f"Error {command}")
+        return -1
+    match = re.search(r'rx_packets:\s*(\d+)', result.stdout)
+    return int(match.group(1))
+
+def _compute_throughput_rx(ifname:str, time:int) -> int:
+    pre = _get_rx_pkts_ethtool(ifname)
+    sleep(time)
+    post = _get_rx_pkts_ethtool(ifname)
+    return post - pre
+
+
+def _get_redirect_ethtool(ifname:str) -> int:
+    command = f"sudo ethtool -S {ifname}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+    except sp.CalledProcessError as e:
+        print(f"Error {command}")
+        return -1
+    match = re.search(r'rx_xsk_xdp_redirect:\s*(\d+)', result.stdout)
+    return int(match.group(1))
+
+def _compute_throughput_redirect(ifname:str, time:int) -> int:
+    pre = _get_redirect_ethtool(ifname)
+    sleep(time)
+    post = _get_redirect_ethtool(ifname)
+    return post - pre
+
 def _compute_throughput_ethtool(ifname:str, time:int) -> int:
     
     pre = _get_dropped_ethtool(ifname)
@@ -114,9 +148,14 @@ def _compute_throughput_ethtool(ifname:str, time:int) -> int:
     post = _get_dropped_ethtool(ifname)
     return post - pre
 
-def _compute_throughput(ioctlpath:str, time:int, cfg_fpga:bool, cfg_ethtool:bool, ifname:str) -> int:
+def _compute_throughput(ioctlpath:str, time:int, cfg_fpga:bool, cfg_ethtool:bool,cfg_xdp:bool, ifname:str) -> int:
     #se fpga è true c = "" altrimenti c = ""
-    if cfg_ethtool:
+
+    if cfg_ethtool and cfg_xdp=="afxdp":
+        return _compute_throughput_redirect(ifname, time)
+    elif cfg_ethtool and not cfg_xdp:
+        return _compute_throughput_rx(ifname, time)
+    elif cfg_ethtool and cfg_xdp:
         return _compute_throughput_ethtool(ifname, time)
     else:
         if cfg_fpga:
@@ -459,7 +498,7 @@ def run_suite(suite_cfg:json, name:str) -> int:
     # cfg_multicore = suite_cfg.get("multicore", 1)
     cfg_ethtool = suite_cfg.get("ethtool", False)
     cfg_budget = suite_cfg.get("budget", False)
-    
+    cfg_xdp = suite_cfg.get("xdp", True)    
     
     #clear csv and sets up fiels
     _init_csv(csvpath, suite_cfg)
@@ -480,6 +519,8 @@ def run_suite(suite_cfg:json, name:str) -> int:
 
     rxqueue = [128, 256, 512, 1024, 2048, 4096, 8192]
     txqueue = [2, 4, 8, 16, 32, 64, 128, 256, 512] #budget
+    # rxqueue = [128, 256, 512, 1024, 2048, 4096, 8192]
+    # txqueue = [8,16,32, 64, 128, 256, 512] #budget
 
     if cfg_budget:
         range_budget = len(rxqueue)*len(txqueue)
@@ -542,7 +583,7 @@ def run_suite(suite_cfg:json, name:str) -> int:
                 print(f"Repetition: {repetition+1}")
 
                 if suite_cfg["throughput"]:
-                    throughput = _compute_throughput(ioctlpath, time, cfg_fpga, cfg_ethtool, ifname) // time 
+                    throughput = _compute_throughput(ioctlpath, time, cfg_fpga, cfg_ethtool,cfg_xdp, ifname) // time 
                     avg_throughput.append(throughput)
                     allcsvdata.append(throughput)
                     allcsvdata.append(0) # used for std

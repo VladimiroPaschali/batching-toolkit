@@ -1,0 +1,13 @@
+#include "/home/andrea/mellanox_batching/mlx5/core/en.h"
+
+
+kprobe:mlx5e_handle_rx_cqe_mpwrq {
+        $rq = (struct mlx5e_rq *)arg0;
+        $wq = $rq->mpwqe.wq;
+
+        printf("mlx5e_handle_rx_cqe_mpwrq: rq=%p wq=%p\n", $rq, $wq);
+}
+
+interval:s:1 {
+        printf("interval:s:1\n");
+}
