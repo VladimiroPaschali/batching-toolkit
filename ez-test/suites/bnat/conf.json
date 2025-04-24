@@ -9,11 +9,7 @@
             "name": "bnat",
             "path": "nat/bnat",
             "args": "@/nat/nat_tbl.txt"
-        },
-        {
-            "name": "brouter",
-            "path": "router/brouter"
-        }
+        } 
     ],
     "before_start": [
         {

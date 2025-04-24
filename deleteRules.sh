@@ -4,13 +4,12 @@ if [ $USER != "root" ]; then
     exit 1
 fi
 
-ETH=enp52s0f1np1
 
-RULES=$(sudo ethtool -n $ETH | grep "Filter: " | awk '{print $NF}')
+RULES=$(sudo ethtool -n $1 | grep "Filter: " | awk '{print $NF}')
 
 
 for RULE in $RULES; do
-    sudo ethtool -N $ETH delete $RULE
+    sudo ethtool -N $1 delete $RULE
 done
 
 

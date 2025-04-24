@@ -30,12 +30,6 @@
             "path": "conntrack/conntrack"
         },
         {
-            "name": "loadbalancer",
-            "path": "loadbalancer/loadbalancer",
-            "args": "@/loadbalancer/512dest.csv"
-
-        },
-        {
             "name": "router",
             "path": "router/router"
         },
@@ -43,10 +37,6 @@
             "name": "nat",
             "path": "nat/nat",
             "args": "@/nat/nat_tbl.txt"
-        },
-        {
-            "name": "tx",
-            "path": "tx/tx"
         }
     ],
     "before_start": [
@@ -68,7 +58,8 @@
     "bandwidth": false,
     "cpu": 0,
     "perfIPC": false,
-    "perfCacheMisses":false,
+    "perfCacheMisses": true,
     "perfIPP": false,
-    "perfBranchMisses":false
+    "perfBranchMisses": false,
+    "perfTLBMisses": false
 }

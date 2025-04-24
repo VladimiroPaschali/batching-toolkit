@@ -1,0 +1,7 @@
+kprobe:napi_*{
+          if (cpu == 0) {
+              printf("--%s--", func);
+              printf("%s\n", probe);
+          }
+}
+

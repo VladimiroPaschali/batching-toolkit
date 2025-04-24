@@ -1,0 +1,17 @@
+BEGIN {
+        @count = 0;
+        @usecs = 0;
+}
+
+kretprobe:net_rx_action{
+        if (cpu == 0) {
+                @count++;      
+                @usecs = nsecs / 1000;
+        }
+          }
+
+interval:s:1 {
+        printf("%d -- %u\n", @count, @usecs);
+        clear(@count);
+}
+ 

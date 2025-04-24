@@ -1,0 +1,32 @@
+BEGIN {
+        @interrupt = 119;
+        @old_irq = 0;
+        @irq = 0;
+        // @count;
+}
+kprobe:handle_irq_event
+{
+    if (((struct irq_desc *)arg0)->irq_data.irq == @interrupt) {
+        @irq[cpu] = ((struct irq_desc *)arg0)->tot_count;
+    }
+}
+
+// kprobe:mlx5e:napi_poll{
+//         if (cpu == 0) {
+//             @count = count();
+//         }
+//           }
+
+interval:s:1 {
+        $i = 0;
+        while ($i < 32) {
+            if (@irq[$i] != 0) {
+                printf("irq %d: %d \n", @interrupt, @irq - @old_irq);
+            }
+        $i++;
+        }
+    @old_irq = @irq;
+    // print(@count);
+    // clear(@count);
+
+}

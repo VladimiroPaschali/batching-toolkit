@@ -56,8 +56,6 @@ def spacial_locality_dist(args):
     return spacial_list[: args.n_pkts]
 
 
-
-
 def gen_pktss(args, set_flows):
     """Genera args.n_pkts pacchetti distribuiti secondo la distribuzione uniform e hashati con parametro args.locality_size partendo dai flussi set_flows"""
     list_flows = list(set_flows)
@@ -81,8 +79,8 @@ def gen_pktss(args, set_flows):
         # dst = "192.168.101.2"
         # sport = "2000"
         # dport = "8901"
-        smac= "e8:eb:d3:78:95:8d"
-        dmac = "58:a2:e1:d0:69:ce"
+        smac = "e8:eb:d3:78:95:8d"
+        dmac = "58:a2:e1:d0:69:cf"
 
         key = (
             compute_hash(get_input(src, dst, int(sport), int(dport)), 12)
@@ -95,7 +93,6 @@ def gen_pktss(args, set_flows):
                 / TCP(dport=int(dport), sport=int(sport))
                 # / Raw(load=gen_payload(normal_payload_size[i]))
                 / Raw(load=str(i))
-
             )
         else:
             pkt = (
@@ -136,10 +133,8 @@ def gen_pktss_chiesa(args, set_flows):
     pkts = []
 
     # Inizia la barra di progresso
-    descr = "Generazione pacchetti "+args.distribution
-    for i in tqdm(
-        range(0, len(distr)), desc=descr, unit="pkt"
-    ):
+    descr = "Generazione pacchetti " + args.distribution
+    for i in tqdm(range(0, len(distr)), desc=descr, unit="pkt"):
         flow = list_flows[distr[i] % args.n_flows]
         src, dst, proto, sport, dport = flow
 
@@ -150,7 +145,6 @@ def gen_pktss_chiesa(args, set_flows):
                 / TCP(dport=int(dport), sport=int(sport))
                 # / Raw(load=gen_payload(normal_payload_size[i]))
                 / Raw(load=str(i))
-
             )
         else:
             pkt = (
@@ -159,7 +153,6 @@ def gen_pktss_chiesa(args, set_flows):
                 / UDP(dport=int(dport), sport=int(sport))
                 # / Raw(load=gen_payload(normal_payload_size[i]))
                 / Raw(load=str(i))
-
             )
 
         pkts.append(pkt)
