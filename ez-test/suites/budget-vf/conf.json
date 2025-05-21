@@ -1,5 +1,5 @@
 {
-    "ifname": "enp52s0f1v0",
+    "ifname": "enp52s0f1v1",
     "exp-dir": "/home/vladimiro/bxdp",
     "ioctl-dir":"/home/andrea/mellanox_batching/utils",
     "time": 5,

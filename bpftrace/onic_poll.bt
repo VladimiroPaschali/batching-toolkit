@@ -1,0 +1,39 @@
+BEGIN {
+    @interrupt_min = 152;
+    @interrupt_max = 159;
+    @old_irq[0] = 0;    // old_irq ora è una mappa indicizzata
+    // rimuovi @irq dichiarata come variabile scalare
+}
+
+kprobe:handle_irq_event
+{
+    $irq_num = ((struct irq_desc *)arg0)->irq_data.irq;
+    if ($irq_num > @interrupt_min && $irq_num < @interrupt_max) {
+        $i = $irq_num - @interrupt_min;
+        @irq[$i] = ((struct irq_desc *)arg0)->tot_count;
+    }
+}
+
+kretprobe:onic_rx_poll 
+{
+    @work_done_percpu[cpu] = retval;
+}
+
+interval:s:1
+{
+    $i = 0;
+    while ($i < 32) {
+        if (@work_done_percpu[$i] > 0) {
+            printf("CPU %d: work_done=%d\n", $i, @work_done_percpu[$i]);
+        }
+
+        if (@irq[$i] > 0) {
+            $delta = @irq[$i] - @old_irq[$i];
+            printf("irq %d: %d\n", $i + @interrupt_min, $delta);
+            @old_irq[$i] = @irq[$i];
+        }
+
+        $i++;
+    }
+}
+

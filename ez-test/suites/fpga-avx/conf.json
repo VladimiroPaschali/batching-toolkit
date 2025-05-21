@@ -6,20 +6,20 @@
     "repetitions": 3,
     "progs": [
         {
-            "name": "bnitro2",
-            "path": "nitroSketch/bnitro2"
+            "name": "aobnitro1",
+            "path": "nitroSketch/aobnitro1"
         },
         {
-            "name": "obnitro2",
-            "path": "nitroSketch/obnitro2"
+            "name": "abnitro1",
+            "path": "nitroSketch/abnitro1"
         },
         {
-            "name": "bnitro1",
-            "path": "nitroSketch/bnitro1"
+            "name": "aobnitro2",
+            "path": "nitroSketch/aobnitro2"
         },
         {
-            "name": "obnitro1",
-            "path": "nitroSketch/obnitro1"
+            "name": "abnitro2",
+            "path": "nitroSketch/abnitro2"
         }
     ],
     "before_start": [

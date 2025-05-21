@@ -1,0 +1,64 @@
+{
+    "ifname": "ens8191",
+    "exp-dir": "/home/vladimiro/bxdp",
+    "ioctl-dir": "/home/andrea/onic-driver/utility",
+    "time": 10,
+    "repetitions": 3,
+    "progs": [
+        {
+            "name": "bnat",
+            "path": "nat/bnat",
+            "args": "@/nat/nat_tbl.txt"
+        },
+        {
+            "name": "obnat",
+            "path": "nat/obnat",
+            "args": "@/nat/nat_tbl.txt"
+        },
+        {
+            "name": "tbnat",
+            "path": "nat/tbnat",
+            "args": "@/nat/nat_tbl.txt"
+        },
+        {
+            "name": "tobnat",
+            "path": "nat/tobnat",
+            "args": "@/nat/nat_tbl.txt"
+        },
+        {
+            "name": "bcms",
+            "path": "cms/bcms"
+        },
+        {
+            "name": "obcms",
+            "path": "cms/obcms"
+        },
+        {
+            "name": "sobcms",
+            "path": "cmsOptimizations/sobcms"
+        }
+    ],
+    "before_start": [
+        {
+            "name": "bpf_stats",
+            "cmd": "sysctl kernel.bpf_stats_enabled",
+            "expected": "0$"
+        },
+        {
+            "name": "CPU frequency",
+            "cmd": "cpupower -c 0 frequency-info |sed -n 's/.*current CPU frequency: \\([0-9.]\\+ [MG]Hz\\).*/\\1/p'",
+            "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$"
+        }
+    ],
+    "fpga": true,
+    "batched": true,
+    "bpf-stats": false,
+    "throughput": true,
+    "bandwidth": false,
+    "cpu": 0,
+    "perfIPC": true,
+    "perfCacheMisses": false,
+    "perfIPP": true,
+    "perfBranchMisses": false,
+    "perfStalled": true
+}

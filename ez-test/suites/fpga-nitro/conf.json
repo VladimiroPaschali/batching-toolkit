@@ -6,6 +6,10 @@
     "repetitions": 5,
     "progs": [
         {
+            "name": "nitro1",
+            "path": "nitroSketch/nitro1"
+        },
+        {
             "name": "nitro2",
             "path": "nitroSketch/nitro2"
         }

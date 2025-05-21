@@ -1,56 +1,57 @@
 {
     "ifname": "ens8191",
     "exp-dir": "/home/vladimiro/bxdp",
-    "ioctl-dir": "/home/andrea/onic-driver/utility",
+    "ioctl-dir":"/home/andrea/onic-driver/utility",
     "time": 10,
-    "repetitions": 3,
+    "repetitions":3,
     "progs": [
         {
-            "name": "bdrop",
-            "path": "drop/bdrop"
+            "name": "drop",
+            "path": "drop/drop"
         },
         {
-            "name": "bpass",
-            "path": "pass/bpass"
+            "name": "pass",
+            "path": "pass/pass"
         },
         {
-            "name": "bcms",
-            "path": "cms/bcms"
+            "name": "cms",
+            "path": "cms/cms"
         },
         {
-            "name": "bnitro2",
-            "path": "nitroSketch/bnitro2"
+            "name": "nitro2",
+            "path": "nitroSketch/nitro2"
         },
         {
-            "name": "bnitro1",
-            "path": "nitroSketch/bnitro1"
+            "name": "nitro1",
+            "path": "nitroSketch/nitro1"
         },
         {
-            "name": "bconntrack",
-            "path": "conntrack/bconntrack"
+            "name": "conntrack",
+            "path": "conntrack/conntrack"
         },
         {
-            "name": "brouter",
-            "path": "router/brouter"
+            "name": "router",
+            "path": "router/router"
         },
         {
-            "name": "tbrouter",
-            "path": "router/tbrouter"
+            "name": "trouter",
+            "path": "router/trouter"
         },
         {
-            "name": "bnat",
-            "path": "nat/bnat",
+            "name": "nat",
+            "path": "nat/nat",
             "args": "@/nat/nat_tbl.txt"
         },
         {
-            "name": "tbnat",
-            "path": "nat/tbnat",
+            "name": "tnat",
+            "path": "nat/tnat",
             "args": "@/nat/nat_tbl.txt"
         },
         {
-            "name": "btx",
-            "path": "tx/btx"
+            "name": "tx",
+            "path": "tx/tx"
         }
+
     ],
     "before_start": [
         {
@@ -65,9 +66,9 @@
         }
     ],
     "fpga": true,
-    "batched": true,
+    "batched": false,
     "bpf-stats": false,
-    "throughput": true,
+    "throughput": false,
     "bandwidth": false,
     "cpu": 13,
     "perfIPC": false,
@@ -76,5 +77,4 @@
     "perfBranchMisses": false,
     "perfTLBMisses": false,
     "cpuUsage": false
-
 }

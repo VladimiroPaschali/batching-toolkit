@@ -4,52 +4,44 @@
     "ioctl-dir": "/home/andrea/onic-driver/utility",
     "time": 10,
     "repetitions": 3,
+    "multicore":4,
     "progs": [
         {
-            "name": "bdrop",
-            "path": "drop/bdrop"
+            "name": "drop",
+            "path": "drop/drop"
         },
         {
-            "name": "bpass",
-            "path": "pass/bpass"
+            "name": "pass",
+            "path": "pass/pass"
         },
         {
-            "name": "bcms",
-            "path": "cms/bcms"
+            "name": "cms",
+            "path": "cms/cms"
         },
         {
-            "name": "bnitro2",
-            "path": "nitroSketch/bnitro2"
+            "name": "nitro2",
+            "path": "nitroSketch/nitro2"
         },
         {
-            "name": "bnitro1",
-            "path": "nitroSketch/bnitro1"
+            "name": "nitro1",
+            "path": "nitroSketch/nitro1"
         },
         {
-            "name": "bconntrack",
-            "path": "conntrack/bconntrack"
+            "name": "conntrack",
+            "path": "conntrack/conntrack"
         },
         {
-            "name": "brouter",
-            "path": "router/brouter"
+            "name": "router",
+            "path": "router/router"
         },
         {
-            "name": "tbrouter",
-            "path": "router/tbrouter"
-        },
-        {
-            "name": "bnat",
-            "path": "nat/bnat",
+            "name": "nat",
+            "path": "nat/nat",
             "args": "@/nat/nat_tbl.txt"
         },
         {
-            "name": "tbnat",
-            "path": "nat/tbnat",
-            "args": "@/nat/nat_tbl.txt"
-        },
-        {
-            "name": "btx",
-            "path": "tx/btx"
+            "name": "tx",
+            "path": "tx/tx"
         }
     ],
     "before_start": [
@@ -64,17 +56,14 @@
             "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$" 
         }
     ],
+    "batched": false,
     "fpga": true,
-    "batched": true,
     "bpf-stats": false,
     "throughput": true,
     "bandwidth": false,
-    "cpu": 13,
+    "cpu": 0,
     "perfIPC": false,
     "perfCacheMisses": false,
     "perfIPP": false,
-    "perfBranchMisses": false,
-    "perfTLBMisses": false,
-    "cpuUsage": false
-
+    "perfBranchMisses": false
 }
