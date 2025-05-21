@@ -4,6 +4,7 @@
     "ioctl-dir": "/home/andrea/onic-driver/utility",
     "time": 10,
     "repetitions": 3,
+    "multicore":4,
     "progs": [
         {
             "name": "bdrop",
@@ -14,16 +15,16 @@
             "path": "pass/bpass"
         },
         {
-            "name": "bcms",
-            "path": "cms/bcms"
+            "name": "obcms",
+            "path": "cms/obcms"
         },
         {
-            "name": "bnitro2",
-            "path": "nitroSketch/bnitro2"
+            "name": "obnitro2",
+            "path": "nitroSketch/obnitro2"
         },
         {
-            "name": "bnitro1",
-            "path": "nitroSketch/bnitro1"
+            "name": "obnitro1",
+            "path": "nitroSketch/obnitro1"
         },
         {
             "name": "bconntrack",
@@ -34,18 +35,9 @@
             "path": "router/brouter"
         },
         {
-            "name": "tbrouter",
-            "path": "router/tbrouter"
-        },
-        {
-            "name": "bnat",
-            "path": "nat/bnat",
-            "args": "@/nat/nat_tbl.txt"
-        },
-        {
-            "name": "tbnat",
-            "path": "nat/tbnat",
-            "args": "@/nat/nat_tbl.txt"
+            "name": "obnat",
+            "path": "nat/obnat",
+            "args": "@/nat/nat_tbl_multicore_fpga.txt"
         },
         {
             "name": "btx",
@@ -64,17 +56,14 @@
             "expected": "^(2\\.(9[0-9])|3\\.([0-9]{2}|10)) GHz$" 
         }
     ],
-    "fpga": true,
     "batched": true,
+    "fpga": true,
     "bpf-stats": false,
     "throughput": true,
     "bandwidth": false,
-    "cpu": 13,
+    "cpu": 0,
     "perfIPC": false,
     "perfCacheMisses": false,
     "perfIPP": false,
-    "perfBranchMisses": false,
-    "perfTLBMisses": false,
-    "cpuUsage": false
-
+    "perfBranchMisses": false
 }

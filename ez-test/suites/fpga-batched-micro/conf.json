@@ -6,21 +6,10 @@
     "repetitions": 3,
     "progs": [
         {
-            "name": "bnitro2",
-            "path": "nitroSketch/bnitro2"
-        },
-        {
-            "name": "obnitro2",
-            "path": "nitroSketch/obnitro2"
-        },
-        {
-            "name": "bnitro1",
-            "path": "nitroSketch/bnitro1"
-        },
-        {
-            "name": "obnitro1",
-            "path": "nitroSketch/obnitro1"
-        }
+            "name": "bcounter",
+            "path": "counter/bcounter"
+        }        
+        
     ],
     "before_start": [
         {
@@ -43,10 +32,12 @@
     "bpf-stats": false,
     "throughput": true,
     "bandwidth": false,
-    "cpu": 0,
+    "cpu": 2,
     "perfIPC": false,
-    "perfCacheMisses": false,
+    "perfCacheMisses": true,
     "perfIPP": false,
     "perfBranchMisses": false,
+    "perfTLBMisses": false,
     "cpuUsage": false
+
 }

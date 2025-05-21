@@ -7,6 +7,8 @@ import signal
 import subprocess as sp
 import numpy as np
 from time import sleep
+
+import psutil
 from hooks import before_exp, after_exp
 
 # SUITE_PATH = "suites"
@@ -72,6 +74,10 @@ def _init_csv(csv_path: str, suite_cfg:str) -> int:
         fields.append("perfBranchMisses")
     if suite_cfg.get("perfTLBMisses", False):
         fields.append("perfTLBMisses")
+    if suite_cfg.get("cpuUsage", False):
+        fields.append("cpuUsage")
+    if suite_cfg.get("perfStalled", False):
+        fields.append("perfStalled")
     with open(csv_path, "w",newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(fields)
@@ -82,7 +88,7 @@ def _append_to_csv(csv_path: str, data: list) -> int:
         writer.writerow(data)
 
 def _compute_throughput(ioctlpath:str, time:int,cfg_fpga:bool, cfg_bpf_stats:bool, progam_name:str) -> int:
-    print(f"cfg_bool_stats: {cfg_bpf_stats}")
+    # print(f"cfg_bool_stats: {cfg_bpf_stats}")
     #se fpga è true c = "" altrimenti c = ""
     if cfg_bpf_stats:
         pre = 0
@@ -149,7 +155,10 @@ def _bpftool_id(name):
         return int(match.group(1))
     else:
         return -1
-
+def _cpu_usage(time:int, core:int) -> int:
+    cpus = psutil.cpu_percent(interval=time, percpu=True)
+    # print (cpus)
+    return cpus[core]
 # def _perf_ipc(cpu,time) -> int:
 def _perf_ipc(time, name) -> int:
 
@@ -195,6 +204,8 @@ def _perf_cache_misses(time, name) -> int:
     # command= f"sudo perf_bpf stat -e L1-dcache-load-misses:k -C {cpu} --timeout {time*1000}"
     bpftool_id = _bpftool_id(name)
     command= f"sudo perf_bpf stat -b {bpftool_id} -e L1-dcache-load-misses --timeout {time*1000}"
+    # command= f"sudo perf_bpf stat -b {bpftool_id} -e LLC-load-misses --timeout {time*1000}"
+
     try:
         result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
 
@@ -204,6 +215,8 @@ def _perf_cache_misses(time, name) -> int:
     # print(result.stderr)
 
     match1 = re.search(r'([\d,]+)\s+L1-dcache-load-misses', result.stderr)
+    # match1 = re.search(r'([\d,]+)\s+LLC-load-misses', result.stderr)
+
     cache_misses = int(match1.group(1).replace(",","")) if match1 else -1
 
     match2 = re.search(r'run:\s*(\d+)', result.stderr)
@@ -231,6 +244,27 @@ def _perf_tlb_misses(time, name) -> int:
     run_count = int(match2.group(1)) if match2 else -1
 
     return cache_misses/run_count
+def _perf_stalled(time, name) -> int:
+
+
+    # command= f"sudo perf_bpf stat -e L1-dcache-load-misses:k -C {cpu} --timeout {time*1000}"
+    bpftool_id = _bpftool_id(name)
+    command= f"sudo perf_bpf stat -b {bpftool_id} -e cycle_activity.stalls_total --timeout {time*1000}"
+    try:
+        result = sp.run(shlex.split(command),capture_output=True,text=True, check=True)
+
+    except sp.CalledProcessError as e:
+        print("Error perf cache misses command")
+        return -1
+    # print(result.stderr)
+
+    match1 = re.search(r'([\d,]+)\s+cycle_activity.stalls_total', result.stderr)
+    stalled = int(match1.group(1).replace(",","")) if match1 else -1
+
+    match2 = re.search(r'run:\s*(\d+)', result.stderr)
+    run_count = int(match2.group(1)) if match2 else -1
+
+    return stalled/run_count
 
 def _batched(ioctlpath:str ,cfg_batch:bool) -> int:
 
@@ -296,14 +330,16 @@ def _multicore(cfg_fpga:bool, cfg_batched:bool, core:int, ifname) -> int:
     s2 = f"sudo ethtool --set-rxfh-indir {ifname} weight 1 0 0 0 1"
     s4 = f"sudo ethtool --set-rxfh-indir {ifname} weight 1 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1"
 
+    c =f"sudo ethtool --set-rxfh-indir {ifname} equal {core}"
+
     # b2 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6920 m 0x001f action 0; sudo ethtool -N {ifname} flow-type ether proto 0x6900 m 0x001f action 4"
     # b4 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6900 m 0x000f action 0; sudo ethtool -N {ifname} flow-type ether proto 0x6910 m 0x000f action 4; sudo ethtool -N {ifname} flow-type ether proto 0x6920 m 0x000f action 12; sudo ethtool -N {ifname} flow-type ether proto 0x6930 m 0x000f action 20"
     b21 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6920 m 0x001f action 0"
-    b22 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6900 m 0x001f action 4"
+    b22 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6900 m 0x001f action 2"
     b41 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6900 m 0x000f action 0"
-    b42 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6910 m 0x000f action 4"
-    b43 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6920 m 0x000f action 12"
-    b44 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6930 m 0x000f action 20"
+    b42 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6910 m 0x000f action 2"
+    b43 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6920 m 0x000f action 4"
+    b44 = f"sudo ethtool -N {ifname} flow-type ether proto 0x6930 m 0x000f action 8"
     if cfg_batched:
         if core == 1:
             # _multicore_reset(ifname,cfg_batched)
@@ -320,16 +356,17 @@ def _multicore(cfg_fpga:bool, cfg_batched:bool, core:int, ifname) -> int:
             command.append(b44)
 
     else:
-        command.append(indir)
-        if core == 1:
-            command.append(s1)
-        elif core == 2:
-            command.append(s2)
-        elif core == 4:
-            command.append(s4)
-    if cfg_fpga:
-        print("FPGA non fatto")
-        return -1
+        # command.append(indir)
+        # if core == 1:
+        #     command.append(s1)
+        # elif core == 2:
+        #     command.append(s2)
+        # elif core == 4:
+        #     command.append(s4)
+        command.append(c)
+    # if cfg_fpga:
+    #     print("FPGA non fatto")
+    #     return -1
 
     # print(command)
     for i in range(len(command)):
@@ -428,6 +465,9 @@ def run_suite(suite_cfg:json, name:str) -> int:
             avg_bandwidth=[]
             avg_branch_misses=[]
             avg_tlb_misses=[]
+            avg_core_usage=[]
+            avg_stalled=[]
+
 
 
             # csvdata = [program_name]
@@ -502,6 +542,20 @@ def run_suite(suite_cfg:json, name:str) -> int:
                     allcsvdata.append(tlb_misses)
                     _append_to_log(logpath, f"TLB misses: {tlb_misses}\n")
                     print(f"TLB misses: {tlb_misses}")
+                
+                if suite_cfg.get("cpuUsage", False):
+                    cpu_usage = _cpu_usage(time=1,core=cpu)
+                    avg_core_usage.append(cpu_usage)
+                    allcsvdata.append(cpu_usage)
+                    _append_to_log(logpath, f"Core usage: {cpu_usage}\n")
+                    print(f"Core usage: {cpu_usage}")
+
+                if suite_cfg.get("perfStalled", False):
+                    stalled = _perf_stalled(time, program_name)
+                    avg_stalled.append(stalled)
+                    allcsvdata.append(stalled)
+                    _append_to_log(logpath, f"Stalled Cycles Backend: {stalled}\n")
+                    print(f"Stalled Cycles Backend: {stalled}")
 
                 _term_program(process, logpath)
                 _append_to_csv(allcsvpath, allcsvdata)
@@ -554,6 +608,17 @@ def run_suite(suite_cfg:json, name:str) -> int:
                 csvdata.append(avg_tlb_misses)
                 _append_to_log(logpath, f"Average TLB misses: {avg_tlb_misses}\n")
                 print(f"Average TLB misses: {avg_tlb_misses}")
+
+            if suite_cfg.get("cpuUsage", False):
+                avg_core_usage = sum(avg_core_usage) / repetitions
+                csvdata.append(avg_core_usage)
+                _append_to_log(logpath, f"Average Core usage: {avg_core_usage}\n")
+
+            if suite_cfg.get("perfStalled", False):
+                avg_stalled = sum(avg_stalled) / repetitions
+                csvdata.append(stalled)
+                _append_to_log(logpath, f"Average Stalled Cycles: {avg_stalled}\n")
+                print(f"Average Stalled Cycles: {avg_stalled}")
 
             _append_to_csv(csvpath, csvdata)
             #svuita tra ripetizioni

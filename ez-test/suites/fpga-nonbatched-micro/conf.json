@@ -6,20 +6,10 @@
     "repetitions":3,
     "progs": [
         {
-            "name": "cms",
-            "path": "cms/cms"
-        },
-        {
-            "name": "nat",
-            "path": "nat/nat",
-            "args": "@/nat/nat_tbl.txt"
-        },
-        {
-            "name": "tnat",
-            "path": "nat/tnat",
-            "args": "@/nat/nat_tbl.txt"
-        }
+            "name": "counter",
+            "path": "counter/counter"
 
+        }
     ],
     "before_start": [
         {
@@ -40,10 +30,9 @@
     "bandwidth": false,
     "cpu": 13,
     "perfIPC": false,
-    "perfCacheMisses": false,
+    "perfCacheMisses": true,
     "perfIPP": false,
     "perfBranchMisses": false,
     "perfTLBMisses": false,
-    "cpuUsage": false,
-    "perfStalled": true
+    "cpuUsage": false
 }
